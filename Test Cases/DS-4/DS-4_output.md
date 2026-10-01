@@ -1,5 +1,8 @@
 # Test Plan: Delete program with confirmation
 
+> Playwright automation prompt: [Playwrite_prompt_Didaxis.md](../../tests/Playwrite_prompt_Didaxis.md)  
+> Spec: `tests/ds4-delete-program.spec.ts`
+
 ## Positive flows
 
 ### TC-001 — Program is removed after confirming deletion
