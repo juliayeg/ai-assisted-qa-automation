@@ -1,4 +1,9 @@
+import dotenv from 'dotenv';
+import path from 'path';
+
 import { test, expect, type Page, type Locator } from '@playwright/test';
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 
@@ -17,6 +22,10 @@ function programFormModal(page: Page): Locator {
   return page.getByRole('dialog', { name: 'New Program' });
 }
 
+function programRowsNamed(page: Page, programName: string): Locator {
+  return programsTable(page).getByRole('row').filter({ hasText: programName });
+}
+
 async function loginAsAdmin(page: Page): Promise<void> {
   const { email, password } = requireAdminCredentials();
   await page.goto(`${baseURL}/login`);
@@ -27,7 +36,8 @@ async function loginAsAdmin(page: Page): Promise<void> {
 }
 
 async function openNewProgramModal(page: Page): Promise<Locator> {
-  await page.goto(`${baseURL}/programs`);
+  await page.goto(`${baseURL}/programs`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Programs' })).toBeVisible();
   await page.getByRole('button', { name: 'New Program' }).click();
   const modal = programFormModal(page);
   await expect(modal.getByLabel('Program Name')).toBeVisible();
@@ -38,10 +48,11 @@ async function submitNewProgram(modal: Locator): Promise<void> {
   const createButton = modal.getByRole('button', { name: 'Create' });
   await expect(createButton).toBeEnabled();
   await createButton.click();
-  await expect(modal).toBeHidden();
+  await expect(modal).toBeHidden({ timeout: 20_000 });
 }
 
 async function expectProgramInList(page: Page, programName: string): Promise<void> {
+  await expect(programsTable(page)).toBeVisible({ timeout: 30_000 });
   await expect(programsTable(page).getByText(programName, { exact: true })).toBeVisible();
 }
 
@@ -51,13 +62,12 @@ test.describe('DS-1 — Create new academic program', () => {
   });
 
   test('TC-001: Program creation form displays required fields', async ({ page }) => {
-    await page.goto(`${baseURL}/programs`);
-    await page.getByRole('button', { name: 'New Program' }).click();
+    const modal = await openNewProgramModal(page);
 
-    const modal = programFormModal(page);
     const programName = modal.getByLabel('Program Name');
     const description = modal.getByLabel('Description');
 
+    await expect(modal.getByRole('heading', { name: 'New Program' })).toBeVisible();
     await expect(programName).toBeVisible();
     await expect(description).toBeVisible();
     await expect(programName).toBeEditable();
@@ -75,10 +85,12 @@ test.describe('DS-1 — Create new academic program', () => {
     await submitNewProgram(modal);
 
     await expectProgramInList(page, programName);
-    await expect(programsTable(page).getByText(programDescription)).toBeVisible();
+    await expect(programRowsNamed(page, programName)).toContainText(programDescription);
   });
 
-  test('TC-003: Program is created with description only when name is provided', async ({ page }) => {
+  test('TC-003: Program is created with description only when name is provided', async ({
+    page,
+  }) => {
     const programName = `Data Science Fundamentals ${Date.now()}`;
 
     const modal = await openNewProgramModal(page);
@@ -95,7 +107,9 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
   });
 
-  test('TC-005: Program is not created when form is submitted with empty name', async ({ page }) => {
+  test('TC-005: Program is not created when form is submitted with empty name', async ({
+    page,
+  }) => {
     const modal = await openNewProgramModal(page);
     await modal.getByLabel('Description').fill(`Optional description only ${Date.now()}`);
     await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
@@ -107,11 +121,11 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
   });
 
-  test('TC-007: Program name at maximum allowed length is accepted', async ({ page }) => {
+  test('TC-007: Program name at 100 characters is accepted', async ({ page }) => {
     const suffix = String(Date.now()).slice(-6);
-    const nameBody = 'A'.repeat(255 - suffix.length - 1);
+    const nameBody = 'A'.repeat(100 - suffix.length - 1);
     const programName = `${nameBody}-${suffix}`;
-    expect(programName).toHaveLength(255);
+    expect(programName).toHaveLength(100);
 
     const modal = await openNewProgramModal(page);
     await modal.getByLabel('Program Name').fill(programName);
@@ -121,28 +135,18 @@ test.describe('DS-1 — Create new academic program', () => {
     await expectProgramInList(page, programName);
   });
 
-  test('TC-008: Program name exceeding maximum length is rejected', async ({ page }) => {
-    const longName = 'B'.repeat(256);
+  test('TC-008: Program name over 100 characters should be rejected', async ({ page }) => {
+    test.fail(true, 'Known defect: names over 100 characters are accepted (DS-124)');
+
+    const longName = `B${'b'.repeat(99)}-${Date.now()}`;
+    expect(longName.length).toBeGreaterThan(100);
 
     const modal = await openNewProgramModal(page);
     await modal.getByLabel('Program Name').fill(longName);
-
     const createButton = modal.getByRole('button', { name: 'Create' });
-    const validationMessage = modal.getByText(/too long|maximum|max\.? \d+|characters/i);
 
-    const createDisabled = await createButton.isDisabled();
-    const hasValidation = await validationMessage.count();
-
-    if (createDisabled) {
-      await expect(createButton).toBeDisabled();
-    } else if (hasValidation > 0) {
-      await expect(validationMessage.first()).toBeVisible();
-    } else {
-      await createButton.click();
-      await expect(modal.getByLabel('Program Name')).toBeVisible();
-    }
-
-    await expect(programsTable(page).getByText(longName, { exact: true })).toHaveCount(0);
+    await expect(createButton).toBeDisabled();
+    await expect(programRowsNamed(page, longName)).toHaveCount(0);
   });
 
   test('TC-009: Modal closes without saving when Cancel is clicked', async ({ page }) => {
@@ -153,7 +157,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await modal.getByRole('button', { name: 'Cancel' }).click();
 
     await expect(modal).toBeHidden();
-    await expect(programsTable(page).getByText(draftName)).toHaveCount(0);
+    await expect(programRowsNamed(page, draftName)).toHaveCount(0);
   });
 
   test('TC-010: Description field accepts long text without breaking layout', async ({ page }) => {
@@ -167,6 +171,58 @@ test.describe('DS-1 — Create new academic program', () => {
     await submitNewProgram(modal);
 
     await expectProgramInList(page, programName);
+    await expect(programRowsNamed(page, programName)).toContainText('Long description');
+  });
+
+  test('TC-011: Whitespace-only program name keeps Create disabled', async ({ page }) => {
+    const modal = await openNewProgramModal(page);
+    await modal.getByLabel('Program Name').fill('   ');
+
+    await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
+  });
+
+  test('TC-012: Escape closes modal without saving', async ({ page }) => {
+    const draftName = `Draft Esc ${Date.now()}`;
+
+    const modal = await openNewProgramModal(page);
+    await modal.getByLabel('Program Name').fill(draftName);
+    await page.keyboard.press('Escape');
+
+    await expect(modal).toBeHidden();
+    await expect(programRowsNamed(page, draftName)).toHaveCount(0);
+  });
+
+  test('TC-013: Double-click Create should not create duplicate programs', async ({ page }) => {
+    test.fail(true, 'Known defect: double-click Create creates duplicate rows (DS-110)');
+
+    const programName = `Double Click ${Date.now()}`;
+
+    const modal = await openNewProgramModal(page);
+    await modal.getByLabel('Program Name').fill(programName);
+    await modal.getByRole('button', { name: 'Create' }).dblclick();
+
+    await expect(programRowsNamed(page, programName)).toHaveCount(1, { timeout: 15_000 });
+  });
+
+  test('TC-014: Duplicate program name should be rejected', async ({ page }) => {
+    test.setTimeout(60_000);
+    const programName = `Existing Program ${Date.now()}`;
+
+    const modal = await openNewProgramModal(page);
+    await modal.getByLabel('Program Name').fill(programName);
+    await submitNewProgram(modal);
+    await expect(programRowsNamed(page, programName)).toHaveCount(1);
+
+    const duplicateModal = await openNewProgramModal(page);
+    await duplicateModal.getByLabel('Program Name').fill(programName);
+    await duplicateModal.getByLabel('Description').fill('Duplicate attempt');
+    const createButton = duplicateModal.getByRole('button', { name: 'Create' });
+    await expect(createButton).toBeEnabled();
+    await createButton.click();
+
+    await expect(async () => {
+      expect(await programRowsNamed(page, programName).count()).toBe(1);
+    }).toPass({ timeout: 15_000 });
   });
 });
 

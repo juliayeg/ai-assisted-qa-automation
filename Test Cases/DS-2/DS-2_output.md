@@ -1,234 +1,318 @@
-# Test Plan: Display program list
+# Test Plan: DS-2 — Edit existing program details
+
+**Jira:** [DS-2](https://legionqaschool.atlassian.net/browse/DS-2) — *Edit existing program details*
+
+**User story:** As an admin user, I want to edit an existing program's details so that I can correct or update program information after creation.
+
+**Environment verified:** https://test.didaxis.studio/programs (admin)
 
 ## Positive flows
 
-### TC-001 — Program list shows name and description for each program
+### TC-001 — Edit icon opens the Edit Program modal with current data
 
-**Preconditions:** At least two programs exist (e.g., "Web Development 2026" and "Data Science Fundamentals").
+**Preconditions:** User is logged in as admin. A program exists (e.g. `Web Development 2026`) with a known Description.
 
 **Steps:**
-1. Log in as admin.
-2. Navigate to the Programs page.
+1. Navigate to the Programs page (`/programs`).
+2. Click the **Edit** icon on that program row (`aria-label`: `Edit {program name}`).
 
-**Expected result:** Each program row displays its Program Name and Description.
+**Expected result:** A modal titled **Edit Program** opens. **Program Name** and **Description** are pre-filled with the program's current values. Additional fields visible on the form (Total Program Hours, Default Session Hours, Default Exam Hours, Target Audience, Focus Areas) also show the stored values. Primary actions are **Cancel** and **Save** (not Create).
 
 **Priority:** High
 
 ```gherkin
-Scenario: Display program list with key details
-  Given programs exist in the system
-  When I navigate to the Programs page
-  Then I see a list showing each program's name and description
+Scenario: Open program for editing
+  Given I am on the Programs page
+  And a program "Web Development 2026" exists
+  When I click the edit icon on "Web Development 2026"
+  Then I see the edit form pre-populated with the program's current data
 ```
 
 ---
 
-### TC-002 — Empty state message and create prompt shown when no programs exist
+### TC-002 — Saving a new Program Name updates the list immediately
 
-**Preconditions:** No programs exist in the system.
+**Preconditions:** User is logged in as admin. A unique program exists (e.g. `Web Development 2026`).
 
 **Steps:**
-1. Log in as admin.
-2. Navigate to the Programs page.
+1. Open **Edit Program** for that program.
+2. Change **Program Name** to `Web Development 2026 - Updated`.
+3. Click **Save**.
 
-**Expected result:** A message indicates no programs have been created. A prompt or action to create the first program is visible.
+**Expected result:** The modal closes. The Programs table immediately shows `Web Development 2026 - Updated` in the **Program** column. The previous name is gone. The row **Edit** / **Delete** labels use the new name (`Edit Web Development 2026 - Updated`). Description stays in the same row under the name.
 
 **Priority:** High
 
 ```gherkin
-Scenario: Empty state when no programs exist
-  Given no programs exist
-  When I navigate to the Programs page
-  Then I see a message indicating no programs have been created
-  And I see a prompt to create the first program
+Scenario: Successfully edit a program name
+  Given I am editing "Web Development 2026"
+  When I change the Name to "Web Development 2026 - Updated"
+  And I click Save
+  Then the modal closes
+  And the program list immediately shows "Web Development 2026 - Updated"
 ```
 
 ---
 
-### TC-003 — Empty-state create prompt opens program creation form
+### TC-003 — Description-only edit leaves Program Name and other fields unchanged
 
-**Preconditions:** No programs exist. User is logged in as admin.
+**Preconditions:** User is logged in as admin. A program exists with a name, description, and the form defaults (Default Session Hours `4`, Default Exam Hours `3`).
 
 **Steps:**
-1. Navigate to the Programs page.
-2. Click the create-first-program prompt or button.
+1. Open **Edit Program**.
+2. Change only **Description**.
+3. Click **Save**.
+4. Re-open **Edit Program** for the same program.
 
-**Expected result:** The program creation form opens with Program Name and Description fields.
+**Expected result:** Modal closes after Save. **Program Name**, Default Session Hours, and Default Exam Hours still show their previous values. Only Description is updated. The list row still shows the original name. Extra fields below **Show AI Generation Config** (Total Program Hours, Target Audience, Focus Areas) also persist when saved; they sit under a control that intercepts clicks unless scrolled.
+
+**Priority:** High
+
+```gherkin
+Scenario: Edit preserves unchanged fields
+  Given I am editing a program
+  When I only change the Description
+  And I click Save
+  Then the Name and other fields remain unchanged
+```
+
+---
+
+### TC-004 — Clearing Description is allowed and does not remove the program
+
+**Preconditions:** User is logged in as admin. A program exists with a non-empty Description.
+
+**Steps:**
+1. Open **Edit Program**.
+2. Clear **Description**.
+3. Click **Save**.
+
+**Expected result:** Modal closes. The program remains in the list with its name. Description is empty in the table cell (name still renders; layout is not broken). Re-opening edit shows Description empty.
 
 **Priority:** Medium
 
 ```gherkin
-Scenario: Empty state create prompt opens form
-  Given no programs exist
-  And I am logged in as admin
-  When I navigate to the Programs page
-  And I click the prompt to create the first program
-  Then I see the program creation form
-```
-
----
-
-### TC-004 — Newly created program appears in list without page refresh
-
-**Preconditions:** User is logged in as admin. At least one program already exists.
-
-**Steps:**
-1. Navigate to the Programs page.
-2. Create a new program "Mobile Development 2026".
-3. Observe the list after the modal closes.
-
-**Expected result:** "Mobile Development 2026" appears in the list immediately with its description.
-
-**Priority:** High
-
-```gherkin
-Scenario: List updates after program creation
-  Given I am on the Programs page
-  When I create a program named "Mobile Development 2026"
-  Then the program list includes "Mobile Development 2026" without a page refresh
+Scenario: Save edit with empty description
+  Given I am editing a program that has a description
+  When I clear Description
+  And I click Save
+  Then the program remains in the list
+  And Description is empty
 ```
 
 ---
 
 ## Negative flows
 
-### TC-005 — Program list is not shown to unauthenticated users
+### TC-005 — Unauthenticated users cannot open program edit
 
 **Preconditions:** User is not logged in.
 
 **Steps:**
-1. Navigate directly to the Programs page URL.
+1. Navigate directly to `/programs`.
 
-**Expected result:** User is redirected to login. Program list is not accessible.
+**Expected result:** User is redirected to `/login`. Program table and Edit actions are not shown.
 
 **Priority:** High
 
 ```gherkin
-Scenario: Unauthenticated user cannot view program list
+Scenario: Unauthenticated user cannot edit programs
   Given I am not logged in
   When I navigate to the Programs page
   Then I am redirected to the login page
-  And I do not see the program list
+  And I do not see Edit actions
 ```
 
 ---
 
-### TC-006 — Empty state is not shown when programs exist
+### TC-006 — Save stays disabled when Program Name is empty
 
-**Preconditions:** At least one program exists in the system.
+**Preconditions:** User is logged in as admin. **Edit Program** is open.
 
 **Steps:**
-1. Log in as admin.
-2. Navigate to the Programs page.
+1. Clear **Program Name**.
+2. Observe **Save**.
 
-**Expected result:** The empty-state message and create-first-program prompt are not displayed.
+**Expected result:** **Program Name** is required. **Save** is disabled. The program is not updated.
 
-**Priority:** Medium
+**Priority:** High
 
 ```gherkin
-Scenario: Empty state hidden when programs exist
-  Given programs exist in the system
-  When I navigate to the Programs page
-  Then I do not see the empty state message
+Scenario: Empty program name cannot be saved
+  Given I am editing a program
+  When I clear Program Name
+  Then the Save button is disabled
 ```
 
 ---
 
-### TC-007 — Program with empty description does not break list display
+### TC-007 — Cancel discards unsaved edits
 
-**Preconditions:** A program "Intro to Python" exists with an empty Description.
+**Preconditions:** User is logged in as admin. **Edit Program** is open.
 
 **Steps:**
-1. Log in as admin.
-2. Navigate to the Programs page.
+1. Change **Program Name** and **Description** to values that should not persist.
+2. Click **Cancel**.
+3. Re-open **Edit Program**.
 
-**Expected result:** "Intro to Python" appears in the list. The description area shows empty, a dash, or a placeholder — not a broken layout.
+**Expected result:** Modal closes. List still shows the original name. Re-opened form shows the original name and description.
 
 **Priority:** Medium
 
 ```gherkin
-Scenario: Program with empty description displays correctly
-  Given a program "Intro to Python" exists with no description
-  When I navigate to the Programs page
-  Then I see "Intro to Python" in the list
-  And the description area does not break the layout
+Scenario: Cancel discards unsaved program edits
+  Given I am editing a program
+  And I have changed Program Name and Description
+  When I click Cancel
+  Then the modal closes
+  And the original values remain
+```
+
+---
+
+### TC-008 — Clicking the program name cell does not open the edit form
+
+**Preconditions:** User is logged in as admin. At least one program is listed.
+
+**Steps:**
+1. Click the program name / first **Program** column cell (not the Edit icon).
+
+**Expected result:** **Edit Program** does not open. URL stays `/programs`. Edit is only available via the **Edit {name}** icon button.
+
+**Priority:** Medium
+
+```gherkin
+Scenario: Row text click does not open edit
+  Given I am on the Programs page
+  When I click the program name in the list
+  Then the edit form does not open
 ```
 
 ---
 
 ## Edge cases
 
-### TC-008 — Program with special characters in name displays correctly
+### TC-009 — Whitespace-only Program Name keeps Save disabled
 
-**Preconditions:** A program named "Informatique & IA - Niveau 2" exists with description "Advanced AI track".
+**Preconditions:** User is logged in as admin. **Edit Program** is open.
 
 **Steps:**
-1. Log in as admin.
-2. Navigate to the Programs page.
+1. Replace **Program Name** with only spaces (`   `).
+2. Observe **Save**.
 
-**Expected result:** The program name and description render correctly without HTML encoding issues or truncation errors.
+**Expected result:** **Save** remains disabled.
 
 **Priority:** Medium
 
 ```gherkin
-Scenario: Special characters display correctly in list
-  Given a program "Informatique & IA - Niveau 2" exists
-  When I navigate to the Programs page
-  Then I see "Informatique & IA - Niveau 2" displayed correctly in the list
+Scenario: Whitespace-only program name is invalid on edit
+  Given I am editing a program
+  When I fill in Program Name with "   "
+  Then the Save button is disabled
 ```
 
 ---
 
-### TC-009 — Large number of programs renders without performance degradation
+### TC-010 — Escape from Program Name closes modal without saving
 
-**Preconditions:** 100+ programs exist in the system.
+**Preconditions:** User is logged in as admin. **Edit Program** is open.
 
 **Steps:**
-1. Log in as admin.
-2. Navigate to the Programs page.
-3. Scroll through the list.
+1. Change **Program Name**.
+2. Press Escape while Program Name is focused.
 
-**Expected result:** All programs load within acceptable time. Pagination or virtual scrolling works if implemented.
+**Expected result:** Modal closes. Draft name is not in the list. **Observed:** Escape from the Description textarea may not close the modal on the first press (textarea consumes the key).
 
 **Priority:** Low
 
 ```gherkin
-Scenario: Large program list loads performantly
-  Given 100 programs exist in the system
-  When I navigate to the Programs page
-  Then all programs are accessible within 3 seconds
-  And scrolling through the list remains responsive
+Scenario: Escape discards unsaved edits
+  Given I am editing a program
+  And Program Name is focused
+  When I press Escape
+  Then the modal closes
+  And the program is not renamed
 ```
 
 ---
 
-### TC-010 — Long description is displayed without breaking list layout
+### TC-011 — Modal X close discards unsaved edits
 
-**Preconditions:** A program exists with a 500-character description.
+**Preconditions:** User is logged in as admin. **Edit Program** is open.
 
 **Steps:**
-1. Log in as admin.
-2. Navigate to the Programs page.
+1. Change **Description**.
+2. Click the modal close (X) control.
+3. Re-open edit.
 
-**Expected result:** The description is truncated, wrapped, or expandable without breaking the row layout.
+**Expected result:** Modal closes without saving. Description is unchanged.
 
 **Priority:** Low
 
 ```gherkin
-Scenario: Long description does not break list layout
-  Given a program exists with a 500-character description
-  When I navigate to the Programs page
-  Then the program row layout remains intact
+Scenario: Close icon discards unsaved edits
+  Given I am editing a program
+  When I change Description
+  And I click the modal close control
+  Then the original Description is kept
+```
+
+---
+
+### TC-012 — Special characters in an edited name display correctly
+
+**Preconditions:** User is logged in as admin. A program exists.
+
+**Steps:**
+1. Open **Edit Program**.
+2. Change **Program Name** to a unique `Informatique & IA - Niveau 2` value.
+3. Click **Save**.
+
+**Expected result:** Modal closes. The list and Edit/Delete labels show the name with `&` and hyphens unescaped.
+
+**Priority:** Medium
+
+```gherkin
+Scenario: Edited name with special characters displays correctly
+  Given I am editing a program
+  When I change Program Name to "Informatique & IA - Niveau 2"
+  And I click Save
+  Then the list shows "Informatique & IA - Niveau 2"
+```
+
+---
+
+### TC-013 — Duplicate program name on edit should be rejected
+
+**Preconditions:** Two uniquely named programs exist. Admin is logged in.
+
+**Steps:**
+1. Open **Edit Program** for the second program.
+2. Change **Program Name** to the first program's exact name.
+3. Click **Save**.
+
+**Expected result:** Save is rejected with a uniqueness error; the edited program keeps its original name. **Observed on test env:** duplicate names are accepted (same defect family as DS-13 / DS-122 on create).
+
+**Priority:** Medium
+
+```gherkin
+Scenario: Edit cannot reuse another program's name
+  Given programs "Alpha" and "Beta" exist
+  When I edit "Beta" and set Program Name to "Alpha"
+  And I click Save
+  Then I see an error indicating the name already exists
 ```
 
 ---
 
 ## Ambiguities and gaps in the acceptance criteria
 
-- **List sort order:** No AC specifies default sort (alphabetical, creation date, etc.).
-- **Empty description display:** Not defined how missing descriptions appear in the list.
-- **Pagination:** No criteria for how many programs are shown per page.
-- **Create prompt behavior:** AC says prompt is visible but not whether clicking it opens the form.
-- **Non-admin access:** No AC for whether other roles can view the list.
-- **Loading state:** No AC for spinner or skeleton while programs load.
-- **Overlap with DS-5:** DS-5 ACs are identical; DS-5 feature name mentions filtering but no filter ACs are provided.
+- **Control vs “edit icon”:** The control is an icon button whose accessible name is `Edit {Program Name}` (same pattern as `Delete {Program Name}`). Clicking the name cell does not open edit.
+- **Modal title and submit:** The form is titled **Edit Program**. Submit is **Save**; create uses **Create** on **New Program**.
+- **List layout:** Name and description share the **Program** column; actions are a second unnamed column. After rename, assert with `exact: true` on `Edit {name}` so a new name that extends the old one is not a false match.
+- **“Other fields”:** ACs do not list them. The live form also has Total Program Hours, Default Session Hours (default `4`), Default Exam Hours (default `3`), Target Audience, Focus Areas, and AI config. Description-only save keeps these values.
+- **Description:** Optional. Clearing it on edit is allowed.
+- **Validation:** Empty or whitespace-only Program Name disables Save (HTML `required` on Program Name). No `maxlength` on name in the edit form.
+- **Duplicates:** Not in DS-2 ACs; test env currently allows renaming onto an existing name.
+- **Performance:** Saving refetches the full `/api/programs` list. With thousands of rows the modal can stay visible for many seconds after a successful PATCH.
+- **Display / empty state / filtering:** Covered by DS-5, not DS-2. The previous DS-2 display-only cases did not match this ticket.

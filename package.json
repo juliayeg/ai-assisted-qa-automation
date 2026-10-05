@@ -22,7 +22,8 @@
   "homepage": "https://github.com/juliayeg/ai-assisted-qa-automation#readme",
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@types/node": "^26.6.2"
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "dotenv": "^18.0.5"

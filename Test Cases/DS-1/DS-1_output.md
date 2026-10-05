@@ -1,16 +1,22 @@
-# Test Plan: Create new academic program
+# Test Plan: DS-1 — Create new academic program
+
+**Jira:** [DS-1](https://legionqaschool.atlassian.net/browse/DS-1) — *Create new academic program*
+
+**User story:** As an admin user, I want to create a new academic program so that I can begin designing its curriculum structure.
+
+**Environment verified:** https://test.didaxis.studio/programs (admin)
 
 ## Positive flows
 
-### TC-001 — Program creation form displays required fields
+### TC-001 — Program creation modal shows required AC fields
 
 **Preconditions:** User is logged in as admin.
 
 **Steps:**
-1. Navigate to the Programs page.
-2. Click "+ New Program".
+1. Navigate to the Programs page (`/programs`).
+2. Click **+ New Program**.
 
-**Expected result:** The program creation modal opens with Program Name and Description fields visible and editable.
+**Expected result:** A modal titled **New Program** opens with editable **Program Name** (required) and **Description** fields. The page also shows optional curriculum fields (Total Program Hours, Default Session Hours, Default Exam Hours, Target Audience, Focus Areas) and **Show AI Generation Config**; these are out of DS-1 AC scope but visible on the form.
 
 **Priority:** High
 
@@ -24,16 +30,16 @@ Scenario: Navigate to program creation form
 
 ---
 
-### TC-002 — New program appears in list after successful creation
+### TC-002 — New program appears in the Programs table after Create
 
-**Preconditions:** User is logged in as admin. Program creation form is open.
+**Preconditions:** User is logged in as admin. New Program modal is open.
 
 **Steps:**
-1. Enter "Web Development 2026" in Program Name.
-2. Enter "Full-stack web development program" in Description.
-3. Click Create.
+1. Enter a unique program name (e.g. `Web Development 2026`) in Program Name.
+2. Enter `Full-stack web development program` in Description.
+3. Click **Create**.
 
-**Expected result:** The modal closes. The Programs list displays "Web Development 2026" with its description.
+**Expected result:** The modal closes. The Programs table has a row whose **Program** column includes the program name and description (both render in the first data column; the second column is row actions).
 
 **Priority:** High
 
@@ -49,16 +55,16 @@ Scenario: Successfully create a program
 
 ---
 
-### TC-003 — Program is created with description only when name is provided
+### TC-003 — Program is created when Description is empty
 
-**Preconditions:** User is logged in as admin. Program creation form is open.
+**Preconditions:** User is logged in as admin. New Program modal is open.
 
 **Steps:**
-1. Enter "Data Science Fundamentals" in Program Name.
+1. Enter a unique name (e.g. `Data Science Fundamentals`) in Program Name.
 2. Leave Description empty.
-3. Click Create.
+3. Click **Create**.
 
-**Expected result:** The program is created successfully and appears in the list with name "Data Science Fundamentals" and an empty or placeholder description.
+**Expected result:** The modal closes. The new program name appears in the Programs table.
 
 **Priority:** Medium
 
@@ -76,15 +82,15 @@ Scenario: Create program with name only
 
 ## Negative flows
 
-### TC-004 — Create button remains disabled when program name is empty
+### TC-004 — Create stays disabled when Program Name is empty
 
-**Preconditions:** User is logged in as admin. Program creation form is open.
+**Preconditions:** User is logged in as admin. New Program modal is open.
 
 **Steps:**
-1. Leave Program Name empty.
-2. Observe the Create button state.
+1. Leave Program Name empty (Description may be filled or empty).
+2. Observe the **Create** button.
 
-**Expected result:** The Create button is disabled. No program is created.
+**Expected result:** **Create** is disabled. No program is added.
 
 **Priority:** High
 
@@ -97,15 +103,16 @@ Scenario: Validation prevents empty program name
 
 ---
 
-### TC-005 — Program is not created when Create is clicked with empty name via keyboard bypass
+### TC-005 — Empty Program Name cannot be submitted via keyboard
 
-**Preconditions:** User is logged in as admin. Program creation form is open with Program Name empty.
+**Preconditions:** User is logged in as admin. New Program modal is open with Program Name empty.
 
 **Steps:**
-1. Attempt to submit the form using Enter key or any enabled shortcut.
-2. Check the Programs list.
+1. Optionally fill Description only.
+2. Press Enter in Program Name or attempt to activate **Create**.
+3. Check the Programs table.
 
-**Expected result:** The form is not submitted. No new program appears in the list.
+**Expected result:** The modal stays open, **Create** remains disabled, and no new row is added.
 
 **Priority:** Medium
 
@@ -120,15 +127,15 @@ Scenario: Form submission blocked with empty program name
 
 ---
 
-### TC-006 — Non-admin user cannot access program creation
+### TC-006 — Non-admin user cannot create programs
 
-**Preconditions:** User is logged in with a non-admin role (e.g., viewer or instructor).
+**Preconditions:** User is logged in with a non-admin role.
 
 **Steps:**
 1. Navigate to the Programs page.
-2. Look for the "+ New Program" button.
+2. Look for **+ New Program**.
 
-**Expected result:** The "+ New Program" button is not visible or is disabled. The user cannot open the creation form.
+**Expected result:** **+ New Program** is not available (hidden or disabled). Requires non-admin credentials in test env.
 
 **Priority:** High
 
@@ -143,62 +150,60 @@ Scenario: Non-admin cannot create programs
 
 ## Edge cases
 
-### TC-007 — Program name at maximum allowed length is accepted
+### TC-007 — Program name at 100 characters is accepted
 
-**Preconditions:** User is logged in as admin. Program creation form is open. Maximum name length is known (e.g., 255 characters).
+**Preconditions:** User is logged in as admin. New Program modal is open.
 
 **Steps:**
-1. Enter a program name of exactly 255 characters in Program Name.
-2. Enter a valid description.
-3. Click Create.
+1. Enter a unique 100-character program name.
+2. Enter a short description.
+3. Click **Create**.
 
-**Expected result:** The program is created successfully and the full name is displayed in the list (or truncated with tooltip if UI limits display length).
+**Expected result:** The program is created and appears in the table. *(Related defects cite missing enforcement above 100 characters; 100 chars should succeed.)*
 
 **Priority:** Medium
 
 ```gherkin
-Scenario: Accept program name at max length
+Scenario: Accept program name at 100 characters
   Given I am on the program creation form
-  When I fill in Program Name with a 255-character string
-  And I fill in Description with "Boundary length test program"
+  When I fill in Program Name with a 100-character string
   And I click Create
   Then the program is created successfully
 ```
 
 ---
 
-### TC-008 — Program name exceeding maximum length is rejected
+### TC-008 — Program name over 100 characters should be rejected
 
-**Preconditions:** User is logged in as admin. Program creation form is open.
+**Preconditions:** User is logged in as admin. New Program modal is open.
 
 **Steps:**
-1. Enter a program name of 256 characters in Program Name.
-2. Attempt to click Create.
+1. Enter a unique 101-character program name.
+2. Click **Create**.
 
-**Expected result:** Validation error is shown or input is prevented. The program is not created.
+**Expected result:** Validation prevents creation (error message and/or disabled **Create**, modal remains open). **Observed on test env:** 101+ characters are accepted and the program is created — defect (see DS-124 / DS-191).
 
 **Priority:** Medium
 
 ```gherkin
-Scenario: Reject program name exceeding max length
+Scenario: Reject program name over 100 characters
   Given I am on the program creation form
-  When I fill in Program Name with a 256-character string
-  Then I see a validation error or the Create button is disabled
-  And the program is not created
+  When I fill in Program Name with a 101-character string
+  Then the program is not created
 ```
 
 ---
 
-### TC-009 — Modal closes without saving when Cancel is clicked
+### TC-009 — Cancel closes modal without persisting data
 
-**Preconditions:** User is logged in as admin. Program creation form is open with partially filled fields.
+**Preconditions:** User is logged in as admin. New Program modal is open with Program Name filled.
 
 **Steps:**
-1. Enter "Draft Program" in Program Name.
-2. Click Cancel or close the modal.
-3. Check the Programs list.
+1. Enter a unique draft name (e.g. `Draft Program`).
+2. Click **Cancel**.
+3. Search the Programs table.
 
-**Expected result:** The modal closes. "Draft Program" does not appear in the list.
+**Expected result:** Modal closes. The draft name does not appear in the table.
 
 **Priority:** Medium
 
@@ -213,16 +218,16 @@ Scenario: Cancel discards unsaved program
 
 ---
 
-### TC-010 — Description field accepts long text without breaking layout
+### TC-010 — Long Description is stored when program is created
 
-**Preconditions:** User is logged in as admin. Program creation form is open.
+**Preconditions:** User is logged in as admin. New Program modal is open.
 
 **Steps:**
-1. Enter "Cloud Computing 2026" in Program Name.
-2. Enter a description of 2000 characters in Description.
-3. Click Create.
+1. Enter a unique program name (e.g. `Cloud Computing 2026`).
+2. Enter a 2000-character Description.
+3. Click **Create**.
 
-**Expected result:** The program is created. The description is stored and displayed without breaking the list layout.
+**Expected result:** Modal closes; row appears in the table with name and description content in the Program column. **Observed:** 501+ character descriptions are also accepted (no 500-char UI limit).
 
 **Priority:** Low
 
@@ -233,17 +238,106 @@ Scenario: Create program with long description
   And I fill in Description with a 2000-character string
   And I click Create
   Then the program is created successfully
-  And the description is stored without data loss
+```
+
+---
+
+### TC-011 — Whitespace-only Program Name keeps Create disabled
+
+**Preconditions:** User is logged in as admin. New Program modal is open.
+
+**Steps:**
+1. Enter only spaces in Program Name.
+2. Observe **Create**.
+
+**Expected result:** **Create** remains disabled; no program is created.
+
+**Priority:** Medium
+
+```gherkin
+Scenario: Whitespace-only program name is invalid
+  Given I am on the program creation form
+  When I fill in Program Name with "   "
+  Then the Create button is disabled
+```
+
+---
+
+### TC-012 — Escape closes modal without saving
+
+**Preconditions:** User is logged in as admin. New Program modal is open with Program Name filled.
+
+**Steps:**
+1. Enter a unique draft name.
+2. Press Escape.
+3. Check the Programs table.
+
+**Expected result:** Modal closes; draft program is not listed.
+
+**Priority:** Low
+
+```gherkin
+Scenario: Escape dismisses unsaved program
+  Given I am on the program creation form
+  And I have entered a program name
+  When I press Escape
+  Then the modal closes
+  And the program is not in the list
+```
+
+---
+
+### TC-013 — Double-click Create should not create duplicate programs
+
+**Preconditions:** User is logged in as admin. New Program modal is open.
+
+**Steps:**
+1. Enter a unique program name.
+2. Double-click **Create** quickly.
+3. Count table rows matching that name.
+
+**Expected result:** Exactly one program is created. **Observed on test env:** two rows are created — defect (see DS-110 / DS-123).
+
+**Priority:** High
+
+```gherkin
+Scenario: Double-click Create is idempotent
+  Given I am on the program creation form
+  When I double-click Create
+  Then only one program is created
+```
+
+---
+
+### TC-014 — Duplicate program name should be rejected
+
+**Preconditions:** A program with name `Existing Program` already exists. Admin is logged in.
+
+**Steps:**
+1. Open New Program.
+2. Enter `Existing Program` again and click **Create**.
+
+**Expected result:** Duplicate is rejected with a clear error; list count unchanged. **Observed on test env:** duplicate is accepted and a second row is created — defect (see DS-13 / DS-122). Covered in depth in DS-3.
+
+**Priority:** Medium
+
+```gherkin
+Scenario: Duplicate program name rejected
+  Given a program named "Existing Program" exists
+  When I create another program named "Existing Program"
+  Then creation is rejected
 ```
 
 ---
 
 ## Ambiguities and gaps in the acceptance criteria
 
-- **Description required or optional?** ACs show Description filled in one scenario but do not state whether it is mandatory.
-- **Create button behavior:** AC says Create is disabled when name is empty; unclear whether whitespace-only names are treated the same (covered in DS-3).
-- **Duplicate name handling:** Not mentioned in DS-1 ACs (covered in DS-3).
-- **Post-create feedback:** No AC for success toast/notification after creation.
-- **Modal dismiss behavior:** No AC for closing via Escape key or clicking outside the modal.
-- **Maximum field lengths:** No limits specified for Program Name or Description.
-- **Role permissions:** AC assumes admin login; no criteria for other roles.
+- **Description:** Optional in the app (HTML `required` only on Program Name).
+- **Create button:** Disabled for empty or whitespace-only names; Description alone does not enable Create.
+- **List layout:** Program name and description share one table cell; use row-scoped assertions, not `getByRole('cell', { name })` with name alone.
+- **Field length limits:** Not in DS-1 ACs; test env accepts 101+ character names and 500+ character descriptions without UI validation.
+- **Duplicate names / double-click:** Not in DS-1 ACs; known defects on test env.
+- **Extra form fields:** Hours, audience, focus areas, and AI config are visible but not part of DS-1 ACs.
+- **Post-create feedback:** No success toast required in ACs; modal closing + list update is the signal.
+- **Non-admin access:** AC assumes admin; TC-006 needs separate credentials.
+- **Name trimming:** Leading/trailing spaces in Program Name are stored as entered (defect noted in DS-135).
