@@ -1,7 +1,13 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-import { test, expect, type Page, type Locator } from '@playwright/test';
+import {
+  test,
+  expect,
+  captureApiTokenFromPage,
+  trackProgramCreatesFromResponses,
+} from '../fixtures/cleanup.fixture';
+import type { Page, Locator } from '@playwright/test';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -32,7 +38,7 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign In' }).click();
-  await expect(page).not.toHaveURL(/\/login$/);
+  await page.waitForURL((url) => !url.pathname.endsWith('/login'), { timeout: 60_000 });
 }
 
 async function openNewProgramModal(page: Page): Promise<Locator> {
@@ -57,7 +63,11 @@ async function expectProgramInList(page: Page, programName: string): Promise<voi
 }
 
 test.describe('DS-1 — Create new academic program', () => {
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeEach(async ({ page, trackProgram, apiToken }) => {
+    captureApiTokenFromPage(page, apiToken);
+    trackProgramCreatesFromResponses(page, trackProgram);
     await loginAsAdmin(page);
   });
 
