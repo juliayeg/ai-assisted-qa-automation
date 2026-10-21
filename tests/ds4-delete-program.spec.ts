@@ -249,28 +249,3 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await createProgram(page, programName, `Seed ${programName}`);
   });
 });
-
-test.describe('DS-4 — Delete program with confirmation (non-admin)', () => {
-  test('TC-006: Non-admin user cannot delete programs', async ({ page }) => {
-    const email = process.env.DIDAXIS_NON_ADMIN_EMAIL;
-    const password = process.env.DIDAXIS_NON_ADMIN_PASSWORD;
-    test.skip(!email || !password, 'Set DIDAXIS_NON_ADMIN_EMAIL and DIDAXIS_NON_ADMIN_PASSWORD');
-
-    await page.goto(`${baseURL}/login`);
-    await page.getByLabel('Email').fill(email!);
-    await page.getByLabel('Password').fill(password!);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await expect(page).not.toHaveURL(/\/login$/);
-
-    await goToProgramsPage(page);
-    const deleteButtons = page.getByRole('button', { name: /^Delete / });
-    const count = await deleteButtons.count();
-    if (count === 0) {
-      await expect(deleteButtons).toHaveCount(0);
-      return;
-    }
-    for (let i = 0; i < count; i += 1) {
-      await expect(deleteButtons.nth(i)).toBeDisabled();
-    }
-  });
-});

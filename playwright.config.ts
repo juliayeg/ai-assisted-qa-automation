@@ -37,8 +37,18 @@ export default defineConfig({
   /* Run tests in Chromium only */
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+      timeout: 60_000,
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
+      testIgnore: /.*\.setup\.ts/,
     },
 
     // {

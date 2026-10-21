@@ -1,20 +1,8 @@
-import dotenv from 'dotenv';
-import path from 'path';
-
 import { test, expect, type Page, type Locator } from '@playwright/test';
-
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 
 const saveTimeout = 60_000;
-
-function requireAdminCredentials(): { email: string; password: string } {
-  const email = process.env.DIDAXIS_EMAIL;
-  const password = process.env.DIDAXIS_PASSWORD;
-  test.skip(!email || !password, 'Set DIDAXIS_EMAIL and DIDAXIS_PASSWORD in .env');
-  return { email: email!, password: password! };
-}
 
 function newProgramModal(page: Page): Locator {
   return page.getByRole('dialog', { name: 'New Program' });
@@ -34,15 +22,6 @@ function deleteProgramButton(page: Page, programName: string): Locator {
 
 function uniqueSuffix(testId: string): string {
   return `${Date.now()}-${testId.slice(-8)}`;
-}
-
-async function loginAsAdmin(page: Page): Promise<void> {
-  const { email, password } = requireAdminCredentials();
-  await page.goto(`${baseURL}/login`);
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await expect(page).not.toHaveURL(/\/login$/);
 }
 
 async function goToProgramsPage(page: Page): Promise<void> {
@@ -85,10 +64,6 @@ async function saveEdit(modal: Locator): Promise<void> {
 }
 
 test.describe('DS-2 — Edit existing program details', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-  });
-
   test('TC-001: Edit icon opens the Edit Program modal with current data', async ({
     page,
   }, testInfo) => {
@@ -329,8 +304,9 @@ test.describe('DS-2 — Edit existing program details', () => {
 });
 
 test.describe('DS-2 — Edit existing program details (unauthenticated)', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test('TC-005: Unauthenticated users cannot open program edit', async ({ page }) => {
-    await page.context().clearCookies();
     await page.goto(`${baseURL}/programs`);
 
     await expect(page).toHaveURL(/\/login/);

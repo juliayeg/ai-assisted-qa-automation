@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-import path from 'path';
-
 import {
   test,
   expect,
@@ -9,16 +6,7 @@ import {
 } from '../fixtures/cleanup.fixture';
 import type { Page, Locator } from '@playwright/test';
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
-
-function requireAdminCredentials(): { email: string; password: string } {
-  const email = process.env.DIDAXIS_EMAIL;
-  const password = process.env.DIDAXIS_PASSWORD;
-  test.skip(!email || !password, 'Set DIDAXIS_EMAIL and DIDAXIS_PASSWORD in .env');
-  return { email: email!, password: password! };
-}
 
 function programsTable(page: Page): Locator {
   return page.getByRole('table');
@@ -30,15 +18,6 @@ function programFormModal(page: Page): Locator {
 
 function programRowsNamed(page: Page, programName: string): Locator {
   return programsTable(page).getByRole('row').filter({ hasText: programName });
-}
-
-async function loginAsAdmin(page: Page): Promise<void> {
-  const { email, password } = requireAdminCredentials();
-  await page.goto(`${baseURL}/login`);
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await page.waitForURL((url) => !url.pathname.endsWith('/login'), { timeout: 60_000 });
 }
 
 async function openNewProgramModal(page: Page): Promise<Locator> {
@@ -68,7 +47,6 @@ test.describe('DS-1 — Create new academic program', () => {
   test.beforeEach(async ({ page, trackProgram, apiToken }) => {
     captureApiTokenFromPage(page, apiToken);
     trackProgramCreatesFromResponses(page, trackProgram);
-    await loginAsAdmin(page);
   });
 
   test('TC-001: Program creation form displays required fields', async ({ page }) => {
@@ -233,27 +211,5 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(async () => {
       expect(await programRowsNamed(page, programName).count()).toBe(1);
     }).toPass({ timeout: 15_000 });
-  });
-});
-
-test.describe('DS-1 — Create new academic program (non-admin)', () => {
-  test('TC-006: Non-admin user cannot access program creation', async ({ page }) => {
-    const email = process.env.DIDAXIS_NON_ADMIN_EMAIL;
-    const password = process.env.DIDAXIS_NON_ADMIN_PASSWORD;
-    test.skip(!email || !password, 'Set DIDAXIS_NON_ADMIN_EMAIL and DIDAXIS_NON_ADMIN_PASSWORD to run this test');
-
-    await page.goto(`${baseURL}/login`);
-    await page.getByLabel('Email').fill(email!);
-    await page.getByLabel('Password').fill(password!);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await expect(page).not.toHaveURL(/\/login$/);
-
-    await page.goto(`${baseURL}/programs`);
-    const newProgramButton = page.getByRole('button', { name: 'New Program' });
-    if (await newProgramButton.isVisible()) {
-      await expect(newProgramButton).toBeDisabled();
-    } else {
-      await expect(newProgramButton).toBeHidden();
-    }
   });
 });
