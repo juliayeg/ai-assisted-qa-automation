@@ -3,6 +3,9 @@ import path from 'path';
 
 import { test as setup } from '@playwright/test';
 
+import { LoginPage } from '../pages/LoginPage';
+import { ProgramsPage } from '../pages/ProgramsPage';
+
 const authFile = path.join(__dirname, '../playwright/.auth/user.json');
 
 setup('authenticate', async ({ page }) => {
@@ -14,12 +17,8 @@ setup('authenticate', async ({ page }) => {
     throw new Error('Set DIDAXIS_EMAIL and DIDAXIS_PASSWORD in .env');
   }
 
-  await page.goto('https://test.didaxis.studio/login');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await page.waitForURL((url) => !url.pathname.endsWith('/login'), { timeout: 60_000 });
-  await page.goto('https://test.didaxis.studio/programs');
+  await new LoginPage(page).signIn(email, password);
+  await new ProgramsPage(page).goto();
   await page.waitForURL('**/programs');
 
   fs.mkdirSync(path.dirname(authFile), { recursive: true });
