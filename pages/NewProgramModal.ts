@@ -22,6 +22,26 @@ export class NewProgramModal {
     this.cancelButton = this.dialog.getByRole('button', { name: 'Cancel' });
   }
 
+  /**
+   * Selector for AxeBuilder.include() scoped to this open modal.
+   * Resolves from the dialog located via getByRole('dialog', { name: 'New Program' }).
+   */
+  axeIncludeSelector(): Promise<string> {
+    return this.resolveAxeIncludeScope();
+  }
+
+  async resolveAxeIncludeScope(): Promise<string> {
+    const id = await this.dialog.getAttribute('id');
+    if (id) {
+      return `#${CSS.escape(id)}`;
+    }
+    const ariaLabel = await this.dialog.getAttribute('aria-label');
+    if (ariaLabel) {
+      return `[role="dialog"][aria-label="${ariaLabel.replace(/"/g, '\\"')}"]`;
+    }
+    return '[role="dialog"][aria-modal="true"]';
+  }
+
   duplicateError(): Locator {
     return this.dialog.getByText(duplicateNameError);
   }

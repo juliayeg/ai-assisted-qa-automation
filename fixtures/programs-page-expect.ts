@@ -79,6 +79,14 @@ export async function gotoProgramsAndReady(programs: ProgramsPage): Promise<void
   await expectProgramsPageReady(programs);
 }
 
+/** Clean navigation to /programs (new document load, no open dialogs). */
+export async function gotoFreshProgramsPage(programs: ProgramsPage): Promise<void> {
+  await programs.page.goto('about:blank');
+  await gotoProgramsAndReady(programs);
+  await expect(programs.newProgramModal.dialog).toBeHidden();
+  await expect(programs.editProgramModal.dialog).toBeHidden();
+}
+
 export async function createProgramAndReturnToList(
   programs: ProgramsPage,
   programName: string,

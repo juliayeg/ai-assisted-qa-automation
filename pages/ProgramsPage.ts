@@ -88,6 +88,22 @@ export class ProgramsPage {
     await this.page.keyboard.press('Escape');
   }
 
+  async tabUntilNewProgramButtonFocused(maxTabs = 40): Promise<void> {
+    for (let i = 0; i < maxTabs; i += 1) {
+      const focused = await this.newProgramButton.evaluate(
+        (el) => el === document.activeElement,
+      );
+      if (focused) {
+        return;
+      }
+      await this.page.keyboard.press('Tab');
+    }
+  }
+
+  async pressEnter(): Promise<void> {
+    await this.page.keyboard.press('Enter');
+  }
+
   async openNewProgramForm(): Promise<void> {
     await this.newProgramButton.click();
   }

@@ -16,6 +16,9 @@ Turn a Playwright failure into a Jira Bug linked to the original ticket, with st
    - test title
    - spec path (`tests/*.spec.ts`)
    - browser and base URL from the run (do not read secrets)
+   - for axe/a11y failures: violation ids, impact, help URLs, and node targets
+     from the assertion message (`formatAxeViolationsForReport` in
+     `fixtures/a11y-expect.ts`) — do not treat these as test bugs unless env/auth
 
 3. Find the original ticket key from the `test.describe` name, the test title, or `features/<KEY>.feature` (for example `DS-1`). Fetch it with `getJiraIssue` and use its acceptance criteria for the expected result.
 
