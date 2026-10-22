@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { expectNoAxeViolations } from '../fixtures/a11y-expect';
+import { expectNoAxeViolations, runA11yCheck } from '../fixtures/a11y-expect';
 import { ProgramsPage } from '../pages/ProgramsPage';
 import {
   expectNewProgramModalOpen,
@@ -28,15 +28,17 @@ test.describe('Programs page accessibility', () => {
       const programs = new ProgramsPage(page);
       const modal = programs.newProgramModal;
 
-      await programs.tabUntilNewProgramButtonFocused();
-      await expect(programs.newProgramButton).toBeFocused();
-      await programs.pressEnter();
+      await runA11yCheck('keyboard-new-program-dialog', async () => {
+        await programs.tabUntilNewProgramButtonFocused();
+        await expect(programs.newProgramButton).toBeFocused();
+        await programs.pressEnter();
 
-      await expect(modal.dialog).toBeVisible();
-      await expectNewProgramModalOpen(modal);
+        await expect(modal.dialog).toBeVisible();
+        await expectNewProgramModalOpen(modal);
 
-      await modal.clickCancel();
-      await expect(modal.dialog).toBeHidden();
+        await modal.clickCancel();
+        await expect(modal.dialog).toBeHidden();
+      });
     },
   );
 

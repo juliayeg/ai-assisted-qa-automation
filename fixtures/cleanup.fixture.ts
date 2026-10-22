@@ -23,7 +23,7 @@ export const test = base.extend<
 >({
   apiToken: [
     async ({}, use) => {
-      await use({ value: process.env.DIDAXIS_API_TOKEN });
+      await use({});
     },
     { scope: 'worker' },
   ],
@@ -61,10 +61,10 @@ async function runProgramCleanup(
   if (ids.size === 0) {
     return;
   }
-  const token = process.env.DIDAXIS_API_TOKEN ?? apiToken.value;
+  const token = apiToken.value ?? process.env.DIDAXIS_API_TOKEN;
   if (!token) {
     console.warn(
-      `[api-cleanup] ${label}: skipped ${ids.size} program(s) — set DIDAXIS_API_TOKEN or log in so a Bearer token is captured`,
+      `[api-cleanup] ${label}: skipped ${ids.size} program(s) — log in so a Bearer token is captured, or set DIDAXIS_API_TOKEN`,
     );
     return;
   }

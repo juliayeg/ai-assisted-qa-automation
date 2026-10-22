@@ -21,8 +21,9 @@ its UUID and delete it via the API afterwards.
    handles teardown for every test that uses it.
 
 4. Cleanup uses the DELETE API, not the UI:
-   `DELETE /api/programs/<uuid>` with a Bearer token from
-   `process.env.DIDAXIS_API_TOKEN`.
+   `DELETE /api/programs/<uuid>` with a Bearer token captured from the
+   logged-in browser session (`captureApiTokenFromPage`), falling back to
+   `process.env.DIDAXIS_API_TOKEN` for manual scripts only.
 
 5. Never hardcode the token. Never delete data the test did not create.
 
