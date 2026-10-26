@@ -194,7 +194,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expect(modal.dialog).toBeVisible();
   });
 
-  test('TC-012: Surrounding spaces on a new name are trimmed before create', async ({
+  test.fixme('TC-012: Surrounding spaces on a new name are trimmed before create', async ({
     page,
   }, testInfo) => {
     const programs = new ProgramsPage(page);

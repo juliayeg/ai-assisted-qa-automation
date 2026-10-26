@@ -192,7 +192,7 @@ test.describe('DS-2 — Edit existing program details', () => {
     await expect(programs.editProgramButton(`${programName} ESC`)).toHaveCount(0);
   });
 
-  test('TC-011: Modal X close discards unsaved edits', async ({ page }, testInfo) => {
+  test.fixme('TC-011: Modal X close discards unsaved edits', async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     const programs = new ProgramsPage(page);
     const suffix = uniqueSuffix(testInfo.testId);

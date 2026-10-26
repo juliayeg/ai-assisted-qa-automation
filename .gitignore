@@ -4,6 +4,7 @@
 node_modules/
 /test-results/
 /playwright-report/
+/.ci-triage/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
