@@ -1,0 +1,38 @@
+---
+description: How this project writes Playwright tests — auth, POM,
+  locators, cleanup, data.
+globs: tests/**
+alwaysApply: false
+---
+
+# Playwright Conventions
+
+## Auth
+
+Stored session by default; UI login only for login-page and unauthenticated flows.
+
+- `tests/auth.setup.ts` signs in once and saves `playwright/.auth/user.json`.
+- Default `chromium` project uses that `storageState` (depends on `setup`).
+- Specs assume an authenticated user — do not call `LoginPage.signIn` unless testing login or opting out of storage state.
+
+## Page Objects
+
+One POM per page or component in `pages/`; tests describe intent, POMs handle mechanics.
+
+- Locators: `readonly` in the constructor. Priority: `getByRole` → `getByLabel` / `getByPlaceholder` → `getByText` → `getByTestId` (comment why).
+- Disambiguate with `.filter({ hasText })`, not `.first()`.
+- Action methods only (`goto`, `clickX`, `fillY`) — no `expect(...)` in POMs.
+- Compose components (e.g. `ProgramsPage` + `NewProgramModal`). Import `new XxxPage(page)` in specs.
+- Shared wait/assert sequences → `fixtures/*-expect.ts`, not POMs.
+
+## Locators
+
+Role/label-based; never CSS selectors or XPath; avoid brittle exact text when a role/label exists.
+
+## Data & cleanup
+
+Unique names with `Date.now()` (or equivalent); every test cleans up what it creates.
+
+- Import `test` from `fixtures/cleanup.fixture.ts`, not `@playwright/test`, when creating programs.
+- After create, call `trackProgram(uuid)` immediately; fixture deletes via `DELETE /api/programs/<uuid>`.
+- No manual `afterAll` cleanup; no deleting data the test did not create; never hardcode API tokens.

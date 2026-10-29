@@ -37,7 +37,7 @@ foreach ($name in $secretNames) {
   if (-not $vars.ContainsKey($name)) {
     throw "Missing $name in .env"
   }
-  $vars[$name] | Invoke-Gh @('secret', 'set', $name, '--repo', $repo)
+  Invoke-Gh @('secret', 'set', $name, '--repo', $repo, '--body', $vars[$name])
   Write-Host "Set secret $name on $repo"
 }
 

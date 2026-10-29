@@ -14,6 +14,14 @@ Feature: DS-4 Delete program with confirmation
     When I confirm deletion
     Then "Test Program" is removed from the program list
 
+  Scenario: Confirmation dialog names the program being deleted
+    Given I am logged in as admin
+    And a program "Cybersecurity Basics" exists
+    And I am on the Programs page
+    When I click the delete icon for "Cybersecurity Basics"
+    Then I see a confirmation dialog
+    And the confirmation message contains "Cybersecurity Basics"
+
   # Negative
 
   Scenario: Cancel program deletion
@@ -45,15 +53,6 @@ Feature: DS-4 Delete program with confirmation
 
   # Edge cases
 
-  Scenario: Delete the only program
-    Given I am logged in as admin
-    And "Test Program" is the only program
-    And I am on the Programs page
-    When I click the delete icon for "Test Program"
-    And I confirm deletion
-    Then "Test Program" is removed from the program list
-    And the program list has no program rows
-
   Scenario: Confirming deletion once removes "Test Program" only once
     Given I am logged in as admin
     And a program "Test Program" exists
@@ -71,11 +70,37 @@ Feature: DS-4 Delete program with confirmation
     And I confirm deletion
     Then "Informatique & IA - Niveau 2" is removed from the program list
 
+# UI recon (2026-10-28, cursor-ide-browser — Playwright MCP not available)
+# App: https://test.didaxis.studio/programs (admin@didaxis.studio)
+# Heading: getByRole('heading', { name: 'Programs' })
+# New Program: getByRole('button', { name: 'New Program' })  — visible label "+ New Program"
+# List: HTML <table class="mantine-Table-table"> (role=table). Columns: "Program" + empty actions column.
+# Row name: table.getByRole('row').filter({ hasText: programName })
+# Delete control: getByRole('button', { name: `Delete ${programName}` })
+#   — Mantine ActionIcon, aria-label="Delete <ProgramName>", inner SVG tabler-icon-trash (not emoji, not <img>)
+# Edit control: getByRole('button', { name: `Edit ${programName}` })
+# Confirmation is a NATIVE window.confirm() — not a Mantine/in-app dialog.
+#   Playwright: page.waitForEvent('dialog') then dialog.accept() / dialog.dismiss()
+#   dialog.type() === 'confirm'
+#   Message: Delete program "<name>"? All its semesters and courses will be removed. This cannot be undone.
+#   OK = confirm deletion; Cancel = keep the program
+# Create-for-setup: New Program modal role=dialog, getByLabel('Program Name'), getByLabel('Description'), Create / Cancel
+# Live check: creating "DS4 Recon 1793235328754", JS-clicking Delete, accepting confirm → row gone; dismissing confirm → row stayed.
+# LAYOUT BLOCKER: a 256-char program name stretches the Program column (~14453px). Delete/Edit icons sit at x≈14747.
+#   Parent card overflow:hidden; body does not scroll horizontally. Visual click and MCP click fail
+#   ("Could not scroll element into view"). JS .click() still opens confirm and deletes.
+#   Playwright locator.click() will likely timeout as outside viewport unless the list has no long names.
+#   Related: DS-209 (icons clipped), DS-172 (native confirm vs in-app dialog).
+# No searchbox on the page. Tenant had ~742 programs — "last remaining program / empty state" is not testable here.
+# programs.a11y.spec.ts already covers Programs page axe + keyboard New Program; do not duplicate.
+
 # Ambiguities and gaps in DS-4 acceptance criteria
-# - The confirmation button label is not specified. Scenarios say "confirm deletion" and "Cancel" because those are the words in the ticket. Confirm the visible button text before automation.
-# - Dismiss paths other than Cancel are not specified: Escape, clicking outside the dialog, and a close icon. No scenario asserts those.
-# - The dialog copy is not specified.
-# - "Web Development 2026" and "Informatique & IA - Niveau 2" are not named in DS-4. They are used so a delete can be checked against a program that must remain, and against a special-character name. DS-4 itself only names "Test Program".
-# - Empty-state copy after deleting the last program is not specified. The only-program scenario asserts that no program rows remain.
-# - Whether the same name can be created again after deletion is not specified.
-# - Double-click on the delete icon or on confirm is not specified. The single-confirm scenario asserts "Test Program" is removed once.
+# - Ticket says "confirmation dialog" but does not specify native confirm vs in-app modal. Live UI uses window.confirm().
+# - Button labels are the browser OK / Cancel, not in-app "Confirm" / "Delete".
+# - Dialog copy is not in the ticket; live text is: Delete program "<name>"? All its semesters and courses will be removed. This cannot be undone.
+# - Dismiss via Escape is native-dialog behavior; backdrop click does not apply to window.confirm().
+# - Empty-state copy after deleting the last program is not specified and cannot be verified on this shared tenant.
+# - Soft vs hard delete is not specified; live copy says the delete cannot be undone and removes semesters and courses.
+# - Non-admin permissions are not specified. Skip if no non-admin credentials.
+# - Double-click on the delete icon is not specified (related bugs DS-30 / DS-109 / DS-218).
+# - "Web Development 2026" and "Informatique & IA - Niveau 2" are not named in DS-4; used for remain-in-list and special-character coverage. Use unique suffixes in automation.
