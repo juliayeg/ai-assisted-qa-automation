@@ -9,6 +9,10 @@ import path from 'path';
  */
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+/** Pinned browser locale/timezone — keep local and CI date formatting identical. */
+const locale = 'en-CA';
+const timezoneId = 'America/Toronto';
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -19,14 +23,14 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
+  /* Local runs fail loudly; CI tolerates one transient blip (max 2 retries). */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [['html'], ['github']] : 'list',
   use: {
     baseURL: process.env.DIDAXIS_URL,
     trace: 'on-first-retry',
+    locale,
+    timezoneId,
   },
 
   /* Run tests in Chromium only */

@@ -19,13 +19,19 @@ code gets written.
    - Cover every acceptance criterion with at least one `Scenario`
    - Add negative scenarios — what should NOT happen
    - Add edge-case scenarios — boundaries, empty inputs, duplicates,
-     special characters, max length
+     special characters, max length, and programs API failures (503 save,
+     empty list, malformed payload, 401/403/404/5xx) noting they are
+     candidates for `page.route` per programs-network-mocks skill
+   - For the programs page, add accessibility coverage:
+     1. An axe scan with tags `wcag2a` and `wcag2aa`, asserted empty violations
+     2. A keyboard path axe cannot do: tab to the primary control, focused,
+        Enter opens the dialog (role-based locators / POMs)
 
 3. Write each scenario in Given / When / Then form. `Given` sets the
    starting state, `When` is the action under test, `Then` is the
    observable expected outcome.
 
-4. Group scenarios with comments: `# Happy paths`, `# Negative`, `# Edge cases`.
+4. Group scenarios with comments: `# Happy paths`, `# Negative`, `# Edge cases`, `# Accessibility`.
 
 5. Use real, specific values from the ticket — never placeholders.
 

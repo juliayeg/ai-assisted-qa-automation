@@ -1,6 +1,6 @@
 ---
 name: triage
-model: grok-4.7[context=500k,reasoning_effort=medium,fast=true]
+model: grok-4.7-medium
 description: Diagnoses a red CI run against the repository and classifies the cause. Use whenever a build fails.
 readonly: true
 ---
@@ -21,9 +21,9 @@ You diagnose failed CI runs.
    - Capture failing spec path, exact test title, expected vs actual, and evidence (log excerpt, trace/screenshot paths, run id).
 
 3. **Classify**
-   - **Real app bug** — behavior contradicts requirements; app or API is wrong.
+   - **Real app bug** — behavior contradicts requirements; app or API is wrong. Axe WCAG 2 A/AA violations on Didaxis UI are product defects: report them and stop — never recommend `.disableRules()` to go green.
    - **Test issue** — spec, POM, fixture, or test data; propose a minimal fix summary for human review (do not apply).
-   - **Env / flake** — credentials, infra, or timing; explain; do not file as product bug.
+   - **Env / flake** — credentials, infra, or timing; explain; do not file as product bug. On CI, Playwright may retry up to twice (`retries: 2`); check traces from `trace: 'on-first-retry'`. Do not recommend `workers: 1` or retries above 2 as fixes.
 
 4. **Hand off to parent**
    - Return the structured diagnosis and classification only.

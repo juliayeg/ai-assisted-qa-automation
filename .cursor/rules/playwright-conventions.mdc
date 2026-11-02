@@ -1,38 +1,351 @@
 ---
 description: How this project writes Playwright tests — auth, POM,
-  locators, cleanup, data.
+  locators, data, cleanup, and accessibility
 globs: tests/**
 alwaysApply: false
 ---
 
 # Playwright Conventions
 
-## Auth
+Skill detail: `.cursor/skills/pom-conventions/`, `api-cleanup/`, `programs-network-mocks/`, `a11y-checks/`. Auth decisions: `auth-strategy.md`. Runner knobs: `playwright.config.ts` (do not override in specs).
 
-Stored session by default; UI login only for login-page and unauthenticated flows.
+## 1. Locators
 
-- `tests/auth.setup.ts` signs in once and saves `playwright/.auth/user.json`.
-- Default `chromium` project uses that `storageState` (depends on `setup`).
-- Specs assume an authenticated user — do not call `LoginPage.signIn` unless testing login or opting out of storage state.
+**Standard:** Prefer `getByRole` → `getByLabel` / `getByPlaceholder` → `getByText` → `getByTestId` (comment why); never CSS, XPath, or `.first()` on ambiguous matches — use `.filter({ hasText })` instead.
 
-## Page Objects
+✅ **Good** (`pages/ProgramsPage.ts`):
 
-One POM per page or component in `pages/`; tests describe intent, POMs handle mechanics.
+```typescript
+this.heading = page.getByRole('heading', { name: 'Programs' });
+this.newProgramButton = page.getByRole('button', { name: 'New Program' });
+this.programFilter = page.getByRole('searchbox');
+```
 
-- Locators: `readonly` in the constructor. Priority: `getByRole` → `getByLabel` / `getByPlaceholder` → `getByText` → `getByTestId` (comment why).
-- Disambiguate with `.filter({ hasText })`, not `.first()`.
-- Action methods only (`goto`, `clickX`, `fillY`) — no `expect(...)` in POMs.
-- Compose components (e.g. `ProgramsPage` + `NewProgramModal`). Import `new XxxPage(page)` in specs.
-- Shared wait/assert sequences → `fixtures/*-expect.ts`, not POMs.
+❌ **Bad:**
 
-## Locators
+```typescript
+await page.locator('.programs-table tbody tr').first().click();
+await page.locator('#new-program-btn').click();
+```
 
-Role/label-based; never CSS selectors or XPath; avoid brittle exact text when a role/label exists.
+**Why:** DOM classes and IDs change with styling refactors; role/label locators track what users and assistive tech see.
 
-## Data & cleanup
+---
 
-Unique names with `Date.now()` (or equivalent); every test cleans up what it creates.
+## 2. Waiting
 
-- Import `test` from `fixtures/cleanup.fixture.ts`, not `@playwright/test`, when creating programs.
-- After create, call `trackProgram(uuid)` immediately; fixture deletes via `DELETE /api/programs/<uuid>`.
-- No manual `afterAll` cleanup; no deleting data the test did not create; never hardcode API tokens.
+**Standard:** Sync with web-first `expect(locator)` matchers only — never `waitForTimeout` or one-shot `expect(await locator.isVisible())`.
+
+✅ **Good** (`tests/ds5-filter-program.spec.ts`):
+
+```typescript
+await expect(programs.emptyState).toBeVisible();
+await expect(programs.createFirstProgramButton).toBeVisible();
+```
+
+❌ **Bad:**
+
+```typescript
+await page.waitForTimeout(2000);
+expect(await programs.table.isVisible()).toBe(true);
+```
+
+**Why:** Fixed delays race the UI (too short locally, too long in CI); auto-retrying expects wait until the condition is stable.
+
+---
+
+## 3. Page Objects
+
+**Standard:** One class per page or major component in `pages/`; locators as `readonly` in the constructor; methods perform actions only — all `expect(...)` live in specs (shared wait/assert helpers in `fixtures/`, not POMs).
+
+✅ **Good** (spec + POM):
+
+```typescript
+// tests/ds1-create-program.spec.ts
+const programs = new ProgramsPage(page);
+await gotoProgramsAndReady(programs);
+await programs.openNewProgramForm();
+await expect(programs.newProgramModal.programName).toBeEditable();
+```
+
+```typescript
+// pages/NewProgramModal.ts — actions only
+async clickCreate(): Promise<void> {
+  await this.createButton.click();
+}
+```
+
+❌ **Bad:**
+
+```typescript
+// Inline locators and asserts in the spec
+await page.getByRole('button', { name: 'New Program' }).click();
+expect(await page.getByLabel('Program Name').inputValue()).toBe('x');
+
+// Assertions inside a page object
+async expectCreateEnabled() {
+  await expect(this.createButton).toBeEnabled();
+}
+```
+
+**Why:** Centralizing mechanics in POMs keeps specs readable and stops duplicate brittle selectors when flows change.
+
+---
+
+## 4. Auth
+
+**Standard:** Feature specs use the `setup` project + `storageState: playwright/.auth/user.json`; opt out only when the scenario is login or unauthenticated access; use API/session injection for bulk or manual scripts when UI login is too slow.
+
+✅ **Good** (`tests/auth.setup.ts` + unauthenticated opt-out in `tests/ds2-display-program.spec.ts`):
+
+```typescript
+// auth.setup.ts — runs once, saves session
+await new LoginPage(page).signIn(email, password);
+await page.context().storageState({ path: authFile });
+```
+
+```typescript
+test.describe('unauthenticated', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+  test('cannot open edit without session', async ({ page }) => {
+    await new ProgramsPage(page).goto();
+    await expect(page).toHaveURL(/\/login/);
+  });
+});
+```
+
+❌ **Bad:**
+
+```typescript
+test.beforeEach(async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(process.env.DIDAXIS_EMAIL!);
+  await page.getByRole('button', { name: 'Sign In' }).click();
+});
+```
+
+**Why:** Per-test UI login adds minutes to the suite and flakes on network; stored session matches how real users stay signed in.
+
+---
+
+## 5. Test data
+
+**Standard:** Every created record gets a unique name (`uniqueSuffix(testInfo.testId)` or equivalent); import `test` from `fixtures/cleanup.fixture.ts` and register programs with `trackProgram` / `trackProgramCreatesFromResponses` so teardown DELETE runs automatically.
+
+✅ **Good** (`tests/ds5-filter-program.spec.ts` + `fixtures/test-data.ts`):
+
+```typescript
+import { test, trackProgramCreatesFromResponses, captureApiTokenFromPage } from '../fixtures/cleanup.fixture';
+import { uniqueSuffix } from '../fixtures/test-data';
+
+test.beforeEach(async ({ page, trackProgram, apiToken }) => {
+  captureApiTokenFromPage(page, apiToken);
+  trackProgramCreatesFromResponses(page, trackProgram);
+});
+
+test('filter by name', async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.testId);
+  const name = `Web Development 2026 ${suffix}`;
+  // ... create via POM, IDs tracked for DELETE after test
+});
+```
+
+❌ **Bad:**
+
+```typescript
+import { test } from '@playwright/test';
+
+test('creates program', async ({ page }) => {
+  await createProgram(page, 'Web Development 2026'); // static name, no cleanup
+});
+```
+
+**Why:** Parallel runs collide on fixed names and leave junk data that breaks filters, empty-state tests, and quotas.
+
+---
+
+## 6. API testing
+
+**Standard:** Use Playwright’s `request` fixture for contract checks, listing IDs, and manual/bulk maintenance; UI-created programs still rely on the cleanup fixture — do not hardcode Bearer tokens in specs.
+
+✅ **Good** (`tests/manual/programs-bulk-delete.spec.ts`):
+
+```typescript
+async function fetchProgramIds(
+  request: import('@playwright/test').APIRequestContext,
+  token: string,
+): Promise<string[]> {
+  const response = await request.get(`${baseURL}/api/programs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(response.ok(), `GET /api/programs failed: HTTP ${response.status()}`).toBeTruthy();
+  const body = (await response.json()) as { data?: { id: string }[] };
+  return (body.data ?? []).map((p) => p.id).filter(Boolean);
+}
+```
+
+❌ **Bad:**
+
+```typescript
+test('cleanup', async () => {
+  await fetch('https://test.didaxis.studio/api/programs/uuid', {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer eyJhbG...' },
+  });
+});
+```
+
+**Why:** `request` reuses Playwright config/baseURL and avoids checked-in secrets; the cleanup fixture centralizes DELETE for normal feature tests.
+
+---
+
+## 7. Network mocking
+
+**Standard:** Use `page.route` + `route.fulfill()` (or `route.abort()` for network failure) for deterministic 503/500, empty list, malformed JSON, and related edge cases — recon real copy first, one tag per test, POM-only interaction, never mock the happy-path call you are proving.
+
+✅ **Good** (*advised — add under `tests/` per `.cursor/skills/programs-network-mocks/SKILL.md`; no routed spec in repo yet*):
+
+```typescript
+test('empty catalog shows empty state', { tag: '@programs-empty-list' }, async ({ page }) => {
+  await page.route('**/api/programs', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      return;
+    }
+    await route.continue();
+  });
+
+  const programs = new ProgramsPage(page);
+  await programs.goto();
+  await expect(programs.emptyState).toBeVisible();
+});
+```
+
+❌ **Bad:**
+
+```typescript
+test('create program', async ({ page }) => {
+  await page.route('**/api/programs', (route) => route.fulfill({ status: 200, body: '{"id":"fake"}' }));
+  // mocks POST while asserting real create success
+});
+```
+
+**Why:** Wrong mocks hide integration bugs; routing only the failure path keeps the scenario honest and repeatable in CI.
+
+---
+
+## 8. Accessibility
+
+**Standard:** Key surfaces (always Programs; new pages/modals per `a11y-checks`) get an axe scan with `wcag2a` / `wcag2aa` tags plus a keyboard path axe cannot cover; drive UI via POMs; never `.disableRules()` to go green.
+
+✅ **Good** (`tests/programs.a11y.spec.ts` + `fixtures/a11y-expect.ts`):
+
+```typescript
+test('Programs page meets WCAG 2 A/AA (axe)', { tag: '@regression' }, async ({ page }) => {
+  await expectNoAxeViolations(page);
+});
+
+test('Keyboard opens New Program dialog', { tag: '@regression' }, async ({ page }) => {
+  const programs = new ProgramsPage(page);
+  await programs.tabUntilNewProgramButtonFocused();
+  await expect(programs.newProgramButton).toBeFocused();
+  await programs.pressEnter();
+  await expect(programs.newProgramModal.dialog).toBeVisible();
+});
+```
+
+❌ **Bad:**
+
+```typescript
+const results = await new AxeBuilder({ page }).disableRules(['color-contrast']).analyze();
+expect(results.violations.length).toBeLessThan(5);
+await page.click('text=New Program');
+```
+
+**Why:** Silencing rules hides real WCAG defects; keyboard coverage catches focus traps and non-button activations axe misses.
+
+---
+
+## 9. Assertions
+
+**Standard:** Default to auto-retrying web-first `expect(locator)`; use `expect.soft` for multiple independent checks in one test; use `toHaveScreenshot` only when the UI is stable and functional asserts cannot express the regression.
+
+✅ **Good** (web-first — `tests/ds5-filter-program.spec.ts`):
+
+```typescript
+await expect(programs.rowText(row, program.name, true)).toBeVisible();
+await expect(programs.rowText(row, program.description)).toBeVisible();
+```
+
+✅ **Good** (*advised — use for validation matrices e.g. DS-3; not in repo yet*):
+
+```typescript
+await expect.soft(modal.programName).toHaveAccessibleDescription(/required/i);
+await expect.soft(modal.createButton).toBeDisabled();
+await expect(test.info().errors).toHaveLength(0);
+```
+
+❌ **Bad:**
+
+```typescript
+const text = await row.textContent();
+expect(text).toContain(name);
+await expect(page).toHaveScreenshot(); // on live programs list with changing rows
+```
+
+**Why:** Soft asserts surface all validation failures in one run; snapshotting volatile lists produces false reds; DOM reads skip Playwright’s retry window.
+
+---
+
+## 10. Anti-flake
+
+**Standard:** Local `retries: 0`, CI `retries: 2` (never above 2); `fullyParallel: true` — no `workers: 1` to green a run; pinned `locale` / `timezoneId` in config; freeze time with `page.clock.install()` for relative dates; isolate mocks per test (`unroute` / fresh `page`).
+
+✅ **Good** (`playwright.config.ts` + relative-time pattern):
+
+```typescript
+// playwright.config.ts — do not override in specs
+fullyParallel: true,
+retries: process.env.CI ? 2 : 0,
+use: { locale: 'en-CA', timezoneId: 'America/Toronto', trace: 'on-first-retry' },
+```
+
+✅ **Good** (*advised — use when asserting “2 hours ago”; no spec in repo yet*):
+
+```typescript
+test('relative last updated', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-06-15T14:30:00') });
+  const programs = new ProgramsPage(page);
+  await programs.goto();
+  await expect(programs.lastUpdatedFor('Web Development 2026')).toHaveText('2 hours ago');
+});
+```
+
+❌ **Bad:**
+
+```typescript
+test.describe.configure({ retries: 3 });
+test('dates', async ({ page }) => {
+  await programs.goto();
+  await expect(programs.lastUpdatedCell).toHaveText(formatRelative(new Date()));
+});
+```
+
+**Why:** Extra retries and serial workers mask product bugs; live clocks make relative-time asserts non-deterministic across machines and CI.
+
+---
+
+## Do / Don't quick reference
+
+| Do | Don't |
+|----|--------|
+| Locators via role → label → text → test id in POM constructors | CSS, XPath, `.first()` on ambiguous lists |
+| `await expect(locator).toBeVisible()` / `.toHaveText()` | `waitForTimeout`, `expect(await …isVisible())` |
+| Specs assert; POMs click/fill/goto | `expect` inside `pages/` |
+| Rely on `setup` + `storageState`; opt out for login/auth tests | UI login in every `beforeEach` |
+| `uniqueSuffix(testInfo.testId)` + cleanup fixture `trackProgram` | Static program names; manual `afterAll` DELETE |
+| `request` for API contracts and manual scripts | Hardcoded JWTs in repo |
+| `page.route` / `fulfill` / `abort` for error and empty states (recon copy first) | Mock the API call whose success you assert |
+| Axe `wcag2a`/`wcag2aa` + keyboard via POMs on key pages | `.disableRules()` or invented a11y shortcuts |
+| Web-first expects; `expect.soft` for multi-field validation | One-shot DOM reads; drive-by screenshots on live data |
+| Trust `playwright.config.ts` retries/locale/TZ; `page.clock` for relative time | `workers: 1`, retries > 2, or `new Date()` in relative asserts |

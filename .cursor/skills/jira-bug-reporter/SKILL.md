@@ -24,6 +24,7 @@ Turn a Playwright failure into a Jira Bug linked to the original ticket, with st
 
 4. Decide the root cause before filing:
    - **Product defect** — the app violated the ticket. File the Bug.
+   - **Axe / a11y** — real WCAG 2 A/AA violations on Didaxis UI are product defects. Report them and stop — never use `.disableRules()` to go green.
    - **Test, credentials, or environment** — the spec, missing `DIDAXIS_EMAIL` / `DIDAXIS_PASSWORD`, or the environment failed. Explain that and stop. Do not create a product Bug.
    - **Duplicate** — search first. If an open Bug already covers this failure, return that key and do not create another.
 

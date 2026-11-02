@@ -9,7 +9,8 @@ description: Page Object Model conventions for Playwright tests in this
 # Page Object Model Conventions
 
 All UI interactions go through Page Objects in `pages/`. Tests describe
-intent; POMs handle mechanics.
+intent; POMs handle mechanics. A11y specs (axe scan and keyboard path)
+navigate through the existing POMs; no inline locators in the spec.
 
 ## Steps
 
@@ -45,4 +46,16 @@ Page Object files in `pages/`. Tests in `tests/` that import them.
 ## Shared test assertions
 Reuse web-first expects in `fixtures/programs-page-expect.ts` when several
 specs need the same wait/assert sequence (e.g. list ready, create completed).
-Do not put those helpers in `pages/`.
+Do not put those helpers in `pages/`. Helpers must not use `waitForTimeout` or
+`if (!(await locator.isVisible()))` for sync — prefer `await expect(locator).toBeVisible()` / `.toBeHidden()` or `expect(...).toPass()` for either/or UI states.
+
+## Anti-flake when editing tests or POMs
+
+Apply only to **locators and waits** — do not change what an assertion verifies.
+
+| Replace | With | Removes |
+|---------|------|---------|
+| CSS, XPath, `page.locator('.foo')` | `getByRole` → `getByLabel` / `getByPlaceholder` → `getByText` → `getByTestId` (comment why test id) | DOM-structure / styling flake |
+| `waitForTimeout(n)` | `await expect(locator).toBeVisible()` / `.toBeEnabled()` / `.toHaveText()` | Fixed-delay race (too short or slow CI) |
+| `expect(await locator.isVisible()).toBe(true)` | `await expect(locator).toBeVisible()` | One-shot read before DOM settles |
+| `.first()` on ambiguous match | `.filter({ hasText: '…' })` (or role + name) | Wrong row/button when list order shifts |

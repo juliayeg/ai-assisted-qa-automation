@@ -66,8 +66,11 @@ Copy and track:
 | Outcome | Action |
 |---------|--------|
 | **Product defect** | Follow [jira-bug-reporter](../jira-bug-reporter/SKILL.md). Include CI run id and artifact paths in the Bug description. |
+| **Axe / a11y WCAG violation on app UI** | Product defect. Report them and stop. Never use `.disableRules()` to go green. Follow [jira-bug-reporter](../jira-bug-reporter/SKILL.md). |
 | **Test issue** | Draft a minimal patch (spec and/or POM). Do not merge; leave for review. |
 | **Env / credentials / flake** | Explain in the PR comment. Do not file a product Bug. |
+
+**Config guardrails:** `playwright.config.ts` uses `fullyParallel: true`, `retries: process.env.CI ? 2 : 0`, and `trace: 'on-first-retry'`. Do not recommend `workers: 1` or retries above 2 to stabilize a red run. Date/locale mismatches between local and CI should be checked against pinned `locale` / `timezoneId` in config before blaming the app.
 
 ## PR comment template
 
@@ -109,5 +112,6 @@ If triage runs on a push to `main` with no open PR, post the same structure as a
 ## Related skills
 
 - [jira-bug-reporter](../jira-bug-reporter/SKILL.md) — Jira Bug when classification is product defect
+- [a11y-checks](../a11y-checks/SKILL.md) — axe WCAG failures are product defects; never `.disableRules()` to go green
 - [pom-conventions](../pom-conventions/SKILL.md) — locator and POM structure when the failure is test-side
 - [api-cleanup](../api-cleanup/SKILL.md) — if the failure involves leftover test data

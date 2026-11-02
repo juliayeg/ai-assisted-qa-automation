@@ -12,11 +12,12 @@ During **analyze**, run live UI recon per jira-ticket-to-gherkin step 2 when cre
 ## Routing
 
 - ticket given → analyze (Jira + UI recon) → produce a test plan (`features/<key>.feature`)
-- plan ready → delegate to test-writer
-- spec returned → run: `npx playwright test`
+- plan ready → delegate to test-writer (programs page must include a11y per a11y-checks)
+- spec returned → run: `npx playwright test` (respect `playwright.config.ts`: local `retries: 0`, CI `retries: 2`; do not add `workers: 1` or raise retries above 2 to green a run)
 - run is red → delegate to triage
-- real app bug → delegate to bug-reporter
+- real app bug (including axe WCAG violations) → delegate to bug-reporter; **stop**
 - test issue → delegate to test-writer (propose a fix; human OKs)
+- never use `.disableRules()` to go green on a11y failures
 
 ## Loop guard
 
@@ -26,6 +27,14 @@ At most 3 delegations per task; never re-run an identical failing spec more than
 
 A human approves any merge and any filed bug.
 
+## Guardrails
+
+- A human approves every merge and every filed bug.
+- No subagent edits application source.
+- **test-writer:** may write only under `tests/` (specs).
+- **triage:** read-only; returns a diagnosis and does not edit the repo.
+- **bug-reporter:** files a Jira bug only; does not edit the repo.
+
 ## Done
 
-The suite is green for the ticket, or a bug is filed and linked.
+The suite is green for the ticket, or a bug is filed and linked (including axe violations reported and stopped — never silenced with `.disableRules()`).
