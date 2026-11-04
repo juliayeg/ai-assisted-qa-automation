@@ -27,6 +27,7 @@ export class ProgramsPage {
   readonly dashboardHeading: Locator;
   readonly errorAlerts: Locator;
   readonly programFilter: Locator;
+  readonly signOutButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -44,6 +45,7 @@ export class ProgramsPage {
     this.dashboardHeading = page.getByRole('heading', { name: /dashboard/i });
     this.errorAlerts = page.getByRole('alert');
     this.programFilter = page.getByRole('searchbox');
+    this.signOutButton = page.getByRole('button', { name: 'Sign out' });
   }
 
   editProgramButton(programName: string): Locator {
@@ -183,5 +185,9 @@ export class ProgramsPage {
 
   async navigateToProgramsFromNav(): Promise<void> {
     await this.programsNav.click();
+  }
+
+  async signOut(): Promise<void> {
+    await this.signOutButton.click();
   }
 }
