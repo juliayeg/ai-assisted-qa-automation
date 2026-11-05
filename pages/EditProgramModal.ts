@@ -1,5 +1,9 @@
 import { type Locator, type Page } from '@playwright/test';
 
+/** Shown when PATCH save fails (503/5xx); copy from live app — widen if product text changes. */
+export const editSaveErrorMessage =
+  /unable to save|could not save|failed to save|service unavailable|something went wrong|try again/i;
+
 export class EditProgramModal {
   readonly page: Page;
   readonly dialog: Locator;
@@ -27,6 +31,14 @@ export class EditProgramModal {
 
   createButton(): Locator {
     return this.dialog.getByRole('button', { name: 'Create' });
+  }
+
+  saveError(): Locator {
+    return this.dialog.getByText(editSaveErrorMessage);
+  }
+
+  dialogAlert(): Locator {
+    return this.dialog.getByRole('alert');
   }
 
   async clickSave(): Promise<void> {

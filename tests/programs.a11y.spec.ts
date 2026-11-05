@@ -7,6 +7,12 @@ import {
   gotoFreshProgramsPage,
 } from '../fixtures/programs-page-expect';
 
+/**
+ * DS-257 traceability (features/DS-257.feature — Accessibility)
+ * - Programs page meets WCAG 2 A and AA via axe → "Programs page meets WCAG 2 A/AA (axe)"
+ * - Keyboard opens New Program dialog → "Keyboard opens New Program dialog from primary control"
+ * Functional edit flows: tests/ds257-edit-program.spec.ts
+ */
 test.describe('Programs page accessibility', () => {
   test.beforeEach(async ({ page }) => {
     await gotoFreshProgramsPage(new ProgramsPage(page));
@@ -14,7 +20,7 @@ test.describe('Programs page accessibility', () => {
 
   test(
     'Programs page meets WCAG 2 A/AA (axe)',
-    { tag: '@regression' },
+    { tag: ['@regression', '@ds-257'] },
     async ({ page }) => {
       const programs = new ProgramsPage(page);
       await expectNoAxeViolations(page);
@@ -23,7 +29,7 @@ test.describe('Programs page accessibility', () => {
 
   test(
     'Keyboard opens New Program dialog from primary control',
-    { tag: '@regression' },
+    { tag: ['@regression', '@ds-257'] },
     async ({ page }) => {
       const programs = new ProgramsPage(page);
       const modal = programs.newProgramModal;
