@@ -60,4 +60,29 @@ test.describe('Programs page accessibility', () => {
       await expect(modal.dialog).toBeHidden();
     },
   );
+
+  test.describe('DS-256 traceability', () => {
+    test.describe.configure({ tag: '@DS-256' });
+
+    test('Programs page meets WCAG 2 A and AA via axe', async ({ page }) => {
+      await expectNoAxeViolations(page);
+    });
+
+    test('Keyboard opens New Program dialog', async ({ page }) => {
+      const programs = new ProgramsPage(page);
+      const modal = programs.newProgramModal;
+
+      await runA11yCheck('ds256-keyboard-new-program-dialog', async () => {
+        await programs.tabUntilNewProgramButtonFocused();
+        await expect(programs.newProgramButton).toBeFocused();
+        await programs.pressEnter();
+
+        await expect(modal.dialog).toBeVisible();
+        await expectNewProgramModalOpen(modal);
+
+        await modal.clickCancel();
+        await expect(modal.dialog).toBeHidden();
+      });
+    });
+  });
 });
