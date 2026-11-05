@@ -1,0 +1,72 @@
+name: Test generation
+
+on:
+  schedule:
+    # 06:00 UTC, Monday–Friday
+    - cron: "0 6 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    environment: dev1
+    timeout-minutes: 180
+    env:
+      DIDAXIS_URL: ${{ secrets.DIDAXIS_URL }}
+      DIDAXIS_EMAIL: ${{ secrets.DIDAXIS_EMAIL }}
+      DIDAXIS_PASSWORD: ${{ secrets.DIDAXIS_PASSWORD }}
+      DIDAXIS_API_TOKEN: ${{ secrets.DIDAXIS_API_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Install Cursor CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Work the In Progress backlog
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          agent -p --force --trust --output-format text "$(cat <<'EOF'
+          Backlog mode. This workflow is the external trigger. Follow .cursor/rules/qa-orchestration.mdc.
+
+          Work DS tickets in status "In Progress" that do not have the tests-generated label. Take at most 5 tickets, lowest key first.
+
+          For each ticket:
+          1. Analyze the ticket, including live UI recon when DIDAXIS_EMAIL and DIDAXIS_PASSWORD are set.
+          2. Write a conforming Playwright spec under tests/. Page objects and fixtures only under pages/ and fixtures/. Do not edit application source.
+          3. Run that spec with npx playwright test.
+          4. If the same spec fails the same way again, stop that ticket and move on. Do not retry it.
+          5. Open one pull request linked to the ticket. Put the DS key in the title and body.
+          6. Add the tests-generated label on the Jira ticket so the next run skips it.
+
+          Never merge a pull request. Never close or transition the ticket. A human approves every merge and every filed bug.
+
+          Use ATLASSIAN_EMAIL with ATLASSIAN_API_TOKEN for Jira (API token auth). Use GITHUB_TOKEN for git and pull requests.
+          EOF
+          )"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
