@@ -13,7 +13,6 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    environment: dev1
     timeout-minutes: 180
     env:
       DIDAXIS_URL: ${{ secrets.DIDAXIS_URL }}
