@@ -1,5 +1,7 @@
 import { type Locator, type Page } from '@playwright/test';
 
+import { duplicateNameError } from './NewProgramModal';
+
 export class EditProgramModal {
   readonly page: Page;
   readonly dialog: Locator;
@@ -27,6 +29,10 @@ export class EditProgramModal {
 
   createButton(): Locator {
     return this.dialog.getByRole('button', { name: 'Create' });
+  }
+
+  duplicateError(): Locator {
+    return this.dialog.getByText(duplicateNameError);
   }
 
   async clickSave(): Promise<void> {
