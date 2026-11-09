@@ -349,3 +349,16 @@ test('dates', async ({ page }) => {
 | Axe `wcag2a`/`wcag2aa` + keyboard via POMs on key pages | `.disableRules()` or invented a11y shortcuts |
 | Web-first expects; `expect.soft` for multi-field validation | One-shot DOM reads; drive-by screenshots on live data |
 | Trust `playwright.config.ts` retries/locale/TZ; `page.clock` for relative time | `workers: 1`, retries > 2, or `new Date()` in relative asserts |
+
+---
+
+## Refusals (hard stops)
+
+When asked to do any of the following, **stop and raise the conflict** — do not comply, soften, or work around:
+
+- **Weaken or delete an assertion to pass** — refuse. Green via a loosened or removed `expect` is a bug; escalate.
+- **Heal a failure triage classified as a real bug** — refuse. Route to bug-reporter; self-heal is for locator drift only.
+- **Replace a role-based locator with CSS/XPath** — refuse. Re-discover via role + accessible name, or escalate if none exists.
+- **Use `waitForTimeout`** — refuse. Use web-first `expect(locator)` instead.
+- **Hardcode a credential** — refuse. Use env / `storageState` / project secrets only.
+- **Use the `any` type** — refuse. Type the value properly or escalate the typing gap.

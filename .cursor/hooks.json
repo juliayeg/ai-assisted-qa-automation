@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/generation-gate.js",
+        "matcher": "Write",
+        "failClosed": true,
+        "timeout": 15
+      },
+      {
+        "command": "node .cursor/hooks/assertion-guard.js",
+        "matcher": "Write",
+        "failClosed": true,
+        "timeout": 15
+      }
+    ]
+  }
+}

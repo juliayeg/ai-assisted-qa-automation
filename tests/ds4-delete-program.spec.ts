@@ -29,6 +29,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
       const dialog = await programs.clickDeleteWithDialog(programName, true);
       expect(dialog.type()).toBe('confirm');
       expect(dialog.message()).toMatch(/Delete program/i);
+      expect(dialog.message()).toMatch(/cannot be undone/i);
       await expect(programs.programRow(programName)).toHaveCount(0);
     },
   );
@@ -126,6 +127,36 @@ test.describe('DS-4 — Delete program with confirmation', () => {
       await seedProgramForDelete(programs, programName, `Seed ${programName}`);
       await programs.clickDeleteWithDialog(programName, true);
       await expect(programs.programRow(programName)).toHaveCount(0);
+    },
+  );
+
+  test(
+    'Failed server delete preserves the program in the list',
+    { tag: ['@regression', '@programs-503-delete'] },
+    async ({ page }, testInfo) => {
+      const programs = new ProgramsPage(page);
+      const programName = `Test Program ${uniqueSuffix(testInfo.testId)}`;
+
+      await page.route('**/api/programs/*', async (route) => {
+        if (route.request().method() === 'DELETE') {
+          await route.fulfill({
+            status: 503,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Service unavailable' }),
+          });
+          return;
+        }
+        await route.continue();
+      });
+
+      try {
+        await seedProgramForDelete(programs, programName, `Seed ${programName}`);
+        await programs.clickDeleteWithDialog(programName, true);
+        await expect(programs.programRow(programName)).toHaveCount(1);
+        await expect(programs.heading).toBeVisible();
+      } finally {
+        await page.unrouteAll();
+      }
     },
   );
 });

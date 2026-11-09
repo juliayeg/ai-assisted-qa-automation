@@ -70,6 +70,16 @@ Feature: DS-4 Delete program with confirmation
     And I confirm deletion
     Then "Informatique & IA - Niveau 2" is removed from the program list
 
+  Scenario: Failed server delete preserves the program in the list
+    Given I am logged in as admin
+    And a program "Test Program" exists
+    And the delete API returns 503 for that program
+    And I am on the Programs page
+    When I click the delete icon for "Test Program"
+    And I confirm deletion
+    Then "Test Program" still exists in the list
+    And the Programs page heading is visible
+
 # UI recon (2026-10-28, cursor-ide-browser — Playwright MCP not available)
 # App: https://test.didaxis.studio/programs (admin@didaxis.studio)
 # Heading: getByRole('heading', { name: 'Programs' })
@@ -99,6 +109,8 @@ Feature: DS-4 Delete program with confirmation
 # - Button labels are the browser OK / Cancel, not in-app "Confirm" / "Delete".
 # - Dialog copy is not in the ticket; live text is: Delete program "<name>"? All its semesters and courses will be removed. This cannot be undone.
 # - Dismiss via Escape is native-dialog behavior; backdrop click does not apply to window.confirm().
+#   Recon 2026-11-04: Escape does not dismiss window.confirm in Playwright Chromium (click stalls); Cancel via dismiss() is covered.
+# - DELETE 503 (2026-11-04): program row stays; no role=alert error surfaced — assert list preservation only.
 # - Empty-state copy after deleting the last program is not specified and cannot be verified on this shared tenant.
 # - Soft vs hard delete is not specified; live copy says the delete cannot be undone and removes semesters and courses.
 # - Non-admin permissions are not specified. Skip if no non-admin credentials.

@@ -1,27 +1,60 @@
 ---
-description: How to drive a QA ticket or a red build to done by delegating to the test-writer, triage, and bug-reporter subagents.
+description: How to drive one QA ticket, a backlog queue, or a red build to done by delegating to the test-writer, triage, bug-reporter, and self-heal skills/subagents.
 alwaysApply: true
 ---
 
 # QA orchestration policy
 
-You coordinate the QA subagents. Do the analysis yourself (apply the jira-ticket-to-gherkin skill to turn a ticket into a plan); delegate the rest.
+You coordinate the QA subagents. Do the analysis yourself; delegate the rest.
 
 During **analyze**, run live UI recon per jira-ticket-to-gherkin step 2 when creds are set. If creds are missing, produce Gherkin anyway and call out skipped recon.
+
+## Skills
+
+- **jira-ticket-to-gherkin** — a DS ticket into `features/<key>.feature`. Use this when a ticket exists.
+- **explore-and-generate** — no ticket. One highest-value uncovered flow into `features/explore-<area>-<flow>.feature`. Do not use it when a ticket already exists.
+- **self-heal** — locator drift only, after triage classifies a red run as a test issue. Never for a real app bug. See `.cursor/skills/self-heal/SKILL.md`.
 
 ## Routing
 
 - ticket given → analyze (Jira + UI recon) → produce a test plan (`features/<key>.feature`)
+- no ticket / "find what we're not testing" / "explore <page> for untested flows" / "expand coverage" → **explore-and-generate** → one feature file, then the plan-ready path
 - plan ready → delegate to test-writer (programs page must include a11y per a11y-checks)
 - spec returned → run: `npx playwright test` (respect `playwright.config.ts`: local `retries: 0`, CI `retries: 2`; do not add `workers: 1` or raise retries above 2 to green a run)
-- run is red → delegate to triage
-- real app bug (including axe WCAG violations) → delegate to bug-reporter; **stop**
-- test issue → delegate to test-writer (propose a fix; human OKs)
+- run is red → delegate to triage → **Heal on red**
 - never use `.disableRules()` to go green on a11y failures
+- external backlog trigger → Backlog mode, one ticket at a time
+
+## Heal on red
+
+On a red run, delegate to **triage** to classify. Then:
+
+- **Drift (test issue)** → apply **self-heal**: re-discover via the Agent-Browser, patch the POM, re-run to prove green with assertions unchanged, then open a repair PR linked to the run. Never heal an assertion. Never merge a repair without a human.
+- **Real app bug** (including axe WCAG violations) → delegate to **bug-reporter** to file and link it — **never heal a bug**. Stop.
+- Other test issues (not locator drift) → delegate to test-writer (propose a fix; human OKs).
+
+**Budget.** At most 5 heals per run. If a heal will not prove green with assertions unchanged, stop and escalate — do not weaken asserts, delete expects, or keep patching.
+## Backlog mode
+
+The agent never decides when to start. A Cursor Automation, a headless `agent -p` run, or a local batch starts the run. Do not drain this queue on your own.
+
+**Queue.** DS tickets in status "In Progress" that lack the `tests-generated` label:
+
+```
+project = DS AND status = "In Progress" AND (labels is EMPTY OR labels != "tests-generated") ORDER BY key ASC
+```
+
+**Budget.** At most 5 tickets per run. Leave the rest for the next trigger.
+
+**Per ticket.** analyze → test-writer → `npx playwright test` → triage on red. The coordinator opens one PR for that ticket (test-writer still only writes under `tests/`, `pages/`, `fixtures/`). Put the DS key in the PR title and body. When the PR is open, add the `tests-generated` label on the ticket so the next run skips it.
+
+**Repeated identical failure.** Never re-run that same failing spec again. Stop the ticket, leave its PR unmerged, add `tests-generated` if the PR is open, and move to the next ticket.
+
+**Human gate.** Never merge a PR. Never close or transition the ticket. A human approves every merge and every filed bug.
 
 ## Loop guard
 
-At most 3 delegations per task; never re-run an identical failing spec more than twice — then stop and ask.
+At most 3 delegations per task; never re-run an identical failing spec more than twice — then stop and ask. In backlog mode, stop that ticket and move on.
 
 ## Approval
 
@@ -29,12 +62,14 @@ A human approves any merge and any filed bug.
 
 ## Guardrails
 
-- A human approves every merge and every filed bug.
+- A human approves every merge and every filed bug — no subagent merges, and bug-reporter files only after a human confirms the defect.
 - No subagent edits application source.
-- **test-writer:** may write only under `tests/` (specs).
-- **triage:** read-only; returns a diagnosis and does not edit the repo.
-- **bug-reporter:** files a Jira bug only; does not edit the repo.
+- Blast radius:
+  - **test-writer** — writes test code only under `tests/`, `pages/`, `fixtures/`; no commits or PRs unless asked.
+  - **triage** — read-only (`readonly: true`); reads CI logs, artifacts, and repo; returns a diagnosis, changes nothing.
+  - **bug-reporter** — read-only on the repo (`readonly: true`); its only write is one Jira bug linked to the story.
+  - **self-heal** — POM locator patches only under `pages/`; never edits assertions in `tests/`; opens a repair PR, never merges.
 
 ## Done
 
-The suite is green for the ticket, or a bug is filed and linked (including axe violations reported and stopped — never silenced with `.disableRules()`).
+Single ticket: the suite is green, or a bug is filed and linked (including axe violations reported and stopped — never silenced with `.disableRules()`), or a locator-drift heal has an open unmerged repair PR linked to the run. Backlog run: each taken ticket has one open PR linked to the DS key and the `tests-generated` label, and nothing was merged or closed.
