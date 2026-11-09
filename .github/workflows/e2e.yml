@@ -7,6 +7,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -34,5 +37,75 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  self-heal:
+    needs: test
+    if: ${{ always() && needs.test.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      DIDAXIS_URL: ${{ secrets.DIDAXIS_URL }}
+      DIDAXIS_EMAIL: ${{ secrets.DIDAXIS_EMAIL }}
+      DIDAXIS_PASSWORD: ${{ secrets.DIDAXIS_PASSWORD }}
+      DIDAXIS_API_TOKEN: ${{ secrets.DIDAXIS_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Install Cursor CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: CI self-heal after failed E2E
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          agent -p --force --trust --output-format text "$(cat <<EOF
+          Follow .cursor/rules/qa-orchestration.mdc and .cursor/skills/self-heal/SKILL.md.
+
+          The test job in this E2E workflow run failed.
+          Actions run (failed E2E + this self-heal job): $RUN_URL
+
+          Download the playwright-report artifact from this run when useful. Triage before healing.
+
+          Respect playwright.config.ts retries (CI: 2, never above 2). Do not set workers: 1 to green a run.
+          Never merge. Never weaken assertions. Never heal real app bugs (including axe WCAG). Never use .disableRules().
+
+          Run: npx playwright test (default config; tests/manual/** is testIgnore'd).
+
+          On red: triage each failure.
+          - Drift (POM locator) → self-heal: Agent-Browser a11y rediscovery, patch pages/ only, re-run with assertions unchanged, open one repair PR per heal. Link $RUN_URL in the PR body; record evidence under test-results/self-heal/<slug>/ per self-heal skill.
+          - Real app bug → bug-reporter (human gate before filing). Stop heal path.
+          - Wrong assertion or non-drift test issue → propose a minimal tests/ fix in a PR; do not call it self-heal.
+          - Env/credentials → stop; document in the PR body or a job summary comment.
+
+          Heal budget: at most 5 heals this run. Escalate if green cannot be proved without assertion changes.
+
+          Use ATLASSIAN_EMAIL with ATLASSIAN_API_TOKEN for Jira. Use GITHUB_TOKEN for git and pull requests.
+          EOF
+          )"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-self-heal
           path: playwright-report/
           retention-days: 7

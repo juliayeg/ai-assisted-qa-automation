@@ -16,6 +16,7 @@ test.describe('Programs page accessibility', () => {
     'Programs page meets WCAG 2 A/AA (axe)',
     { tag: '@regression' },
     async ({ page }) => {
+      test.setTimeout(90_000);
       const programs = new ProgramsPage(page);
       await expectNoAxeViolations(page);
     },

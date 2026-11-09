@@ -37,29 +37,49 @@ jobs:
           curl https://cursor.com/install -fsS | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Work the In Progress backlog
+      - name: QA agent (backlog + CI self-heal)
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
           ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          agent -p --force --trust --output-format text "$(cat <<'EOF'
-          Backlog mode. This workflow is the external trigger. Follow .cursor/rules/qa-orchestration.mdc.
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          agent -p --force --trust --output-format text "$(cat <<EOF
+          This workflow is the external trigger. Follow .cursor/rules/qa-orchestration.mdc and .cursor/skills/self-heal/SKILL.md.
+          Actions run for this job: $RUN_URL
 
-          Work DS tickets in status "In Progress" that do not have the tests-generated label. Take at most 5 tickets, lowest key first.
+          Respect playwright.config.ts: local retries 0, CI retries 2 (never above 2); do not set workers: 1 to green a run.
+          Never merge a pull request. Never close or transition a Jira ticket. A human approves every merge and every filed bug.
+          Never weaken or delete assertions. Never use .disableRules() for a11y.
 
-          For each ticket:
+          Use ATLASSIAN_EMAIL with ATLASSIAN_API_TOKEN for Jira. Use GITHUB_TOKEN for git and pull requests.
+
+          ## Backlog
+          Queue: DS tickets in status "In Progress" that do not already have the tests-generated label.
+          Budget: at most 5 tickets. Process them in key order.
+
+          Per ticket:
           1. Analyze the ticket, including live UI recon when DIDAXIS_EMAIL and DIDAXIS_PASSWORD are set.
           2. Write a conforming Playwright spec under tests/. Page objects and fixtures only under pages/ and fixtures/. Do not edit application source.
-          3. Run that spec with npx playwright test.
-          4. If the same spec fails the same way again, stop that ticket and move on. Do not retry it.
-          5. Open one pull request linked to the ticket. Put the DS key in the title and body.
-          6. Add the tests-generated label on the Jira ticket so the next run skips it.
+          3. Run that spec with npx playwright test (scoped to the new spec).
+          On red for that ticket: triage first.
+          - If drift (locator/POM test issue) → apply self-heal: Agent-Browser a11y rediscovery, patch pages/ POM only, re-run proving green with assertions unchanged, then open a repair PR linked to this Actions run ($RUN_URL).
+          - If real app bug (including axe WCAG on app UI) → bug-reporter only; never heal.
+          - Other test issue (e.g. wrong assertion in tests/) → test-writer fix in tests/ or pages/ as appropriate; not self-heal for assertion changes.
+          If the same spec fails the same way again on that ticket, stop that ticket and move on (do not loop). Leave the ticket unlabeled when no PR was opened.
+          4. When the ticket spec is green, open one pull request linked to the ticket. Put the DS key in the title and body.
+          5. After that PR exists, add the tests-generated label so the next run skips it.
 
-          Never merge a pull request. Never close or transition the ticket. A human approves every merge and every filed bug.
+          ## CI self-heal (always — even when the backlog queue is empty)
+          After backlog work (or immediately if the queue is empty), run: npx playwright test
+          (playwright.config.ts testIgnore excludes tests/manual/** — use the default config, do not pass tests/manual explicitly.)
 
-          Use ATLASSIAN_EMAIL with ATLASSIAN_API_TOKEN for Jira (API token auth). Use GITHUB_TOKEN for git and pull requests.
+          If the suite is red: triage each failure.
+          - If drift → self-heal: rediscover via Agent-Browser (role + accessible name), patch pages/ POM only, prove green with assertions unchanged, open one repair PR per heal. Link the repair PR body to this Actions run ($RUN_URL) and cite test-results/self-heal/<slug>/ evidence per self-heal skill.
+          - If real app bug → bug-reporter; never heal.
+          - Env/credentials (e.g. 401 on manual API paths) → report in PR comment or job summary; do not file product bugs.
+          Heal budget: at most 5 heals per run. Stop and escalate if a heal cannot prove green without changing assertions.
           EOF
           )"
 

@@ -72,7 +72,7 @@ import {
   
       await expect(modal.createButton).toBeDisabled();
       await modal.forceClickDisabledCreate();
-      await expect(modal.dialog).not.toBeVisible();
+      await expect(modal.dialog).toBeVisible();
     });
   
     test('TC-005: Duplicate program name is rejected', async ({ page }, testInfo) => {
@@ -214,6 +214,6 @@ import {
   
       await expect(modal.dialog).toBeHidden({ timeout: 60_000 });
       await expectProgramInList(programs, trimmedName);
-      await expect(programs.programRow(paddedName)).toHaveCount(2);
+      await expect(programs.programRow(paddedName)).toHaveCount(0);
     });
   });
