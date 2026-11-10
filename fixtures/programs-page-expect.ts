@@ -33,9 +33,18 @@ export async function expectNewProgramModalOpen(modal: NewProgramModal): Promise
   await expect(modal.programName).toBeVisible();
 }
 
+async function expectProgramsListSurfaceReady(programs: ProgramsPage): Promise<void> {
+  await expect(async () => {
+    const tableVisible = await programs.table.isVisible();
+    const emptyVisible = await programs.emptyState.isVisible();
+    expect(tableVisible || emptyVisible).toBe(true);
+  }).toPass({ timeout: 60_000 });
+}
+
 export async function openNewProgramModal(programs: ProgramsPage): Promise<NewProgramModal> {
-  await programs.goto();
+  await programs.ensureOnProgramsPage();
   await expectProgramsPageReady(programs);
+  await expectProgramsListSurfaceReady(programs);
   await programs.openNewProgramForm();
   await expectNewProgramModalOpen(programs.newProgramModal);
   return programs.newProgramModal;
@@ -149,19 +158,18 @@ export async function expectDuplicateRejected(
   programName: string,
   countBefore: number,
 ): Promise<void> {
-  const countAfter = await programs.countProgramRowsNamed(programName);
-
-  if (!(await modal.dialog.isVisible())) {
-    expect(
-      countAfter,
-      'Duplicate should be rejected; modal closed and program count changed',
-    ).toBe(countBefore);
-    return;
-  }
-
-  expect(countAfter, 'Duplicate program should not increase list count').toBe(countBefore);
-
   const error = modal.duplicateError();
+
+  await expect(async () => {
+    if ((await error.count()) > 0) {
+      await expect(error).toBeVisible();
+    }
+
+    // Do not read row counts until the programs table is in the tree (hidden while dialog mounts).
+    await expect(programs.table).toBeVisible();
+    await expect(programs.programRowsNamed(programName)).toHaveCount(countBefore);
+  }).toPass({ timeout: 30_000 });
+
   if ((await error.count()) > 0) {
     await expect(error).toBeVisible();
   }
