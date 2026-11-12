@@ -117,7 +117,7 @@ export class ProgramsPage {
   async fillAndSubmitNewProgram(programName: string, description?: string): Promise<void> {
     await this.ensureOnProgramsPage();
     await this.openNewProgramForm();
-    await this.newProgramModal.programName.fill(programmeName);
+    await this.newProgramModal.programName.fill(programName);
     if (description !== undefined) {
       await this.newProgramModal.description.fill(description);
     }
