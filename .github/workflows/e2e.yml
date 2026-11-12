@@ -1,6 +1,9 @@
 name: E2E Tests
 
-# Slice policy: PR → @smoke | push → @sanity | workflow_dispatch → full suite (all tests, on demand).
+# Slice policy (separate jobs so the Actions UI shows smoke / sanity / regression):
+#   pull_request     → smoke
+#   push             → sanity
+#   workflow_dispatch → regression (full suite, on demand)
 on:
   push:
   pull_request:
@@ -10,7 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  smoke:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -30,41 +34,84 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - name: Choose test slice
-        id: slice
-        run: |
-          case "${{ github.event_name }}" in
-            workflow_dispatch)
-              echo "command=npx playwright test" >> "$GITHUB_OUTPUT"
-              echo "label=regression-full (all tests, on demand)" >> "$GITHUB_OUTPUT"
-              ;;
-            pull_request)
-              echo "command=npm run test:smoke" >> "$GITHUB_OUTPUT"
-              echo "label=smoke (@smoke)" >> "$GITHUB_OUTPUT"
-              ;;
-            push)
-              echo "command=npm run test:sanity" >> "$GITHUB_OUTPUT"
-              echo "label=sanity (@sanity)" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "command=npm run test:smoke" >> "$GITHUB_OUTPUT"
-              echo "label=smoke (default)" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
-
-      - name: Run Playwright — ${{ steps.slice.outputs.label }}
-        run: ${{ steps.slice.outputs.command }}
+      - name: Run Playwright — smoke (@smoke)
+        run: npm run test:smoke
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-${{ github.event_name }}-${{ github.run_id }}
+          name: playwright-report-smoke-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
+
+  sanity:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DIDAXIS_URL: ${{ secrets.DIDAXIS_URL }}
+      DIDAXIS_EMAIL: ${{ secrets.DIDAXIS_EMAIL }}
+      DIDAXIS_PASSWORD: ${{ secrets.DIDAXIS_PASSWORD }}
+      DIDAXIS_API_TOKEN: ${{ secrets.DIDAXIS_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright — sanity (@sanity)
+        run: npm run test:sanity
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-sanity-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
+
+  regression:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DIDAXIS_URL: ${{ secrets.DIDAXIS_URL }}
+      DIDAXIS_EMAIL: ${{ secrets.DIDAXIS_EMAIL }}
+      DIDAXIS_PASSWORD: ${{ secrets.DIDAXIS_PASSWORD }}
+      DIDAXIS_API_TOKEN: ${{ secrets.DIDAXIS_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright — regression (full suite)
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-regression-${{ github.run_id }}
           path: playwright-report/
           retention-days: 7
 
   self-heal:
-    needs: test
-    if: ${{ always() && needs.test.result == 'failure' }}
+    needs:
+      - smoke
+      - sanity
+      - regression
+    if: ${{ always() && (needs.smoke.result == 'failure' || needs.sanity.result == 'failure' || needs.regression.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -100,21 +147,31 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          FAILED_JOB=""
+          SLICE_CMD=""
+          if [ "${{ needs.smoke.result }}" = "failure" ]; then
+            FAILED_JOB="smoke"
+            SLICE_CMD="npm run test:smoke"
+          elif [ "${{ needs.sanity.result }}" = "failure" ]; then
+            FAILED_JOB="sanity"
+            SLICE_CMD="npm run test:sanity"
+          elif [ "${{ needs.regression.result }}" = "failure" ]; then
+            FAILED_JOB="regression"
+            SLICE_CMD="npx playwright test"
+          fi
           agent -p --force --trust --output-format text "$(cat <<EOF
           Follow .cursor/rules/qa-orchestration.mdc and .cursor/skills/self-heal/SKILL.md.
 
           No Jira backlog — this job is CI self-heal only (push/PR E2E failure).
 
-          The test job in this E2E workflow run failed.
-          Event: ${{ github.event_name }} — re-run the same slice that failed before healing.
+          The ${FAILED_JOB} job in this E2E workflow run failed.
+          Event: ${{ github.event_name }} — re-run the same slice that failed before healing: ${SLICE_CMD}
           Actions run (failed E2E + this self-heal job): $RUN_URL
 
           Download the playwright-report artifact from this run when useful. Triage before healing.
 
           Respect playwright.config.ts retries (CI: 2, never above 2). Do not set workers: 1 to green a run.
           Never merge. Never weaken assertions. Never heal real app bugs (including axe WCAG). Never use .disableRules().
-
-          If this was pull_request: npm run test:smoke. If push: npm run test:sanity. If workflow_dispatch: npx playwright test.
 
           On red: triage each failure.
           - Drift (POM locator) → self-heal: Agent-Browser a11y rediscovery, patch pages/ only, re-run with assertions unchanged, open one repair PR per heal. Link $RUN_URL in the PR body; record evidence under test-results/self-heal/<slug>/ per self-heal skill.
@@ -137,7 +194,9 @@ jobs:
 
   eval-report:
     needs:
-      - test
+      - smoke
+      - sanity
+      - regression
       - self-heal
     if: ${{ always() }}
     runs-on: ubuntu-latest

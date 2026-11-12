@@ -132,7 +132,7 @@ test.beforeEach(async ({ page }) => {
 
 **Standard:** Tag each test with **exactly one** of `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, `@destructive` on the **test** (never on `test.describe`). Run slices via `npm run test:smoke` / `test:sanity` / etc.
 
-**CI** (`.github/workflows/e2e.yml`): **PR** → `@smoke`; **push** → `@sanity`; **workflow_dispatch** (on demand) → full suite. `@regression` / `@e2e` / `@api` run locally or via the full on-demand workflow unless you add a separate workflow.
+**CI** (`.github/workflows/e2e.yml`): separate jobs `smoke` / `sanity` / `regression` with `if:` on event — **PR** → `smoke`; **push** → `sanity`; **workflow_dispatch** → `regression` (full suite). Non-matching jobs appear as skipped in the Actions UI.
 
 | Tag | Use for |
 |-----|---------|

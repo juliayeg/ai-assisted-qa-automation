@@ -67,10 +67,10 @@ Auth is handled via the `setup` project and `playwright/.auth/user.json` (`stora
 
 ## CI
 
-- **[E2E Tests](.github/workflows/e2e.yml)** — tag-based slices + self-heal on failure:
-  - **Pull request** → `npm run test:smoke` (`@smoke`)
-  - **Push** (any branch) → `npm run test:sanity` (`@sanity`)
-  - **On demand** → Actions → **E2E Tests** → **Run workflow** → full suite (`npx playwright test`, all tests except `tests/manual/**`)
+- **[E2E Tests](.github/workflows/e2e.yml)** — three jobs (`smoke` / `sanity` / `regression`); only the matching event runs, others show as skipped:
+  - **Pull request** → `smoke` (`npm run test:smoke`)
+  - **Push** (any branch) → `sanity` (`npm run test:sanity`)
+  - **On demand** → Actions → **E2E Tests** → **Run workflow** → `regression` (full suite)
   - Failed run → optional `self-heal` job (Cursor agent + repo secrets)
 - **[Test generation](.github/workflows/test-generation.yml)** — scheduled backlog + mandatory suite self-heal (Cursor agent).
 
