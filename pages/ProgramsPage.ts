@@ -32,7 +32,7 @@ export class ProgramsPage {
     this.page = page;
     this.newProgramModal = new NewProgramModal(page);
     this.editProgramModal = new EditProgramModal(page);
-    this.heading = page.getByRole('heading', { name: 'Programmes' });
+    this.heading = page.getByRole('heading', { name: 'Programs' });
     this.newProgramButton = page.getByRole('button', { name: 'New Program' });
     this.table = page.getByRole('table');
     this.emptyState = page.getByText(emptyStateMessage);
@@ -117,7 +117,7 @@ export class ProgramsPage {
   async fillAndSubmitNewProgram(programName: string, description?: string): Promise<void> {
     await this.ensureOnProgramsPage();
     await this.openNewProgramForm();
-    await this.newProgramModal.programName.fill(programmeName);
+    await this.newProgramModal.programName.fill(programName);
     if (description !== undefined) {
       await this.newProgramModal.description.fill(description);
     }
