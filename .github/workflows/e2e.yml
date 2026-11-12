@@ -1,9 +1,8 @@
 name: E2E Tests
 
+# Slice policy: PR → @smoke | push → @sanity | workflow_dispatch → full suite (all tests, on demand).
 on:
   push:
-    branches:
-      - main
   pull_request:
   workflow_dispatch:
 
@@ -13,7 +12,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       DIDAXIS_URL: ${{ secrets.DIDAXIS_URL }}
       DIDAXIS_EMAIL: ${{ secrets.DIDAXIS_EMAIL }}
@@ -31,12 +30,35 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npx playwright test
+      - name: Choose test slice
+        id: slice
+        run: |
+          case "${{ github.event_name }}" in
+            workflow_dispatch)
+              echo "command=npx playwright test" >> "$GITHUB_OUTPUT"
+              echo "label=regression-full (all tests, on demand)" >> "$GITHUB_OUTPUT"
+              ;;
+            pull_request)
+              echo "command=npm run test:smoke" >> "$GITHUB_OUTPUT"
+              echo "label=smoke (@smoke)" >> "$GITHUB_OUTPUT"
+              ;;
+            push)
+              echo "command=npm run test:sanity" >> "$GITHUB_OUTPUT"
+              echo "label=sanity (@sanity)" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "command=npm run test:smoke" >> "$GITHUB_OUTPUT"
+              echo "label=smoke (default)" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Run Playwright — ${{ steps.slice.outputs.label }}
+        run: ${{ steps.slice.outputs.command }}
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.event_name }}-${{ github.run_id }}
           path: playwright-report/
           retention-days: 7
 
@@ -84,6 +106,7 @@ jobs:
           No Jira backlog — this job is CI self-heal only (push/PR E2E failure).
 
           The test job in this E2E workflow run failed.
+          Event: ${{ github.event_name }} — re-run the same slice that failed before healing.
           Actions run (failed E2E + this self-heal job): $RUN_URL
 
           Download the playwright-report artifact from this run when useful. Triage before healing.
@@ -91,7 +114,7 @@ jobs:
           Respect playwright.config.ts retries (CI: 2, never above 2). Do not set workers: 1 to green a run.
           Never merge. Never weaken assertions. Never heal real app bugs (including axe WCAG). Never use .disableRules().
 
-          Run: npx playwright test (default config; tests/manual/** is testIgnore'd).
+          If this was pull_request: npm run test:smoke. If push: npm run test:sanity. If workflow_dispatch: npx playwright test.
 
           On red: triage each failure.
           - Drift (POM locator) → self-heal: Agent-Browser a11y rediscovery, patch pages/ only, re-run with assertions unchanged, open one repair PR per heal. Link $RUN_URL in the PR body; record evidence under test-results/self-heal/<slug>/ per self-heal skill.
@@ -111,3 +134,30 @@ jobs:
           name: playwright-report-self-heal
           path: playwright-report/
           retention-days: 7
+
+  eval-report:
+    needs:
+      - test
+      - self-heal
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate eval-report.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVAL_CI_RUNS: 15
+        run: node scripts/eval-report.mjs --trigger e2e --run-id ${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-report.md
+          retention-days: 30

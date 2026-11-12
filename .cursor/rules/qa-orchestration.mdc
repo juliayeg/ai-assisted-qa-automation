@@ -73,3 +73,15 @@ A human approves any merge and any filed bug.
 ## Done
 
 Single ticket: the suite is green, or a bug is filed and linked (including axe violations reported and stopped — never silenced with `.disableRules()`), or a locator-drift heal has an open unmerged repair PR linked to the run. Backlog run: each taken ticket has one open PR linked to the DS key and the `tests-generated` label, and nothing was merged or closed.
+
+## Reliability report
+
+After any coordinator/orchestrator run (local or CI-backed), regenerate **[`eval-report.md`](../eval-report.md)**:
+
+```bash
+npm run eval:report
+# or with session context:
+node scripts/eval-report.mjs --trigger local-orchestrator --session-note "DS-5 triage + heal"
+```
+
+Log **ask vs guess** and **heal** outcomes in `.eval-state/*.jsonl` when they occur (see `.eval-state/README.md`). CI runs the same script after **E2E Tests** and **Test generation** workflows and uploads the artifact `eval-report`.

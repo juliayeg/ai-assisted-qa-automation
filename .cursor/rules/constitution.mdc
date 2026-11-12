@@ -37,6 +37,28 @@ Detail lives in `.cursor/rules/playwright-conventions.mdc` and skills; this file
 | Healing a real bug | Refuse; bug-reporter path only after triage |
 | Tags on `describe` | Refuse; one tag per test instead |
 
+## Agent governance
+
+Behavioral policy for the coordinator and subagents (not hook-enforced). **Audit, then edit** — read ticket, repo, env, and live UI (when creds exist) before writing; do not edit until the Proposal is emitted.
+
+**Every non-trivial task** emits a **Proposal** block before any file edit, shell that mutates state, or PR/Jira write:
+
+```markdown
+### Proposal
+- **Scope:** …
+- **Confidence:** N/10
+- **Rationale:** …
+- **Unknowns:** …
+```
+
+| Confidence | Rule |
+|------------|------|
+| **&lt; 5** | Do **not** proceed. Ask for the missing input or run scoped exploration. |
+| **5–7** | Proceed only with **Unknowns** listed explicitly and **human approval** for the plan. |
+| **≥ 8** | Proceed with the stated scope. |
+
+**Never invent** a file path, enum value, env var name, credential, user-visible message, or API shape — **ask** the human, read `.env.example` / the repo, Jira/Confluence, or **explore** the UI/code. Log asks vs guesses in `.eval-state/ask-guess.jsonl` when orchestrating (see `eval-report.md`).
+
 ## Index
 
 **Skills** (`.cursor/skills/`): `jira-ticket-to-gherkin`, `explore-and-generate`, `self-heal`, `ci-failure-triage`, `jira-bug-reporter`, `pom-conventions`, `a11y-checks`, `programs-network-mocks`, `api-cleanup`

@@ -67,8 +67,22 @@ Auth is handled via the `setup` project and `playwright/.auth/user.json` (`stora
 
 ## CI
 
-- **[E2E Tests](.github/workflows/e2e.yml)** — push/PR: `npx playwright test`; on failure, optional `self-heal` job (Cursor agent + repo secrets).
+- **[E2E Tests](.github/workflows/e2e.yml)** — tag-based slices + self-heal on failure:
+  - **Pull request** → `npm run test:smoke` (`@smoke`)
+  - **Push** (any branch) → `npm run test:sanity` (`@sanity`)
+  - **On demand** → Actions → **E2E Tests** → **Run workflow** → full suite (`npx playwright test`, all tests except `tests/manual/**`)
+  - Failed run → optional `self-heal` job (Cursor agent + repo secrets)
 - **[Test generation](.github/workflows/test-generation.yml)** — scheduled backlog + mandatory suite self-heal (Cursor agent).
+
+Run `@regression` locally or on demand via full suite / `npm run test:regression` (subset tag, not the same as the full dispatch run).
+
+## Reliability report
+
+[`eval-report.md`](eval-report.md) — flake rate, heal success, generation-gate, ask-vs-guess (see script for how each is measured). Regenerate after orchestrator runs or CI:
+
+```bash
+npm run eval:report
+```
 
 Store the same secret names as in `.env.example` under **Settings → Secrets and variables → Actions**.
 
