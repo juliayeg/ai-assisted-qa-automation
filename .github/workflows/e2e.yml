@@ -81,6 +81,8 @@ jobs:
           agent -p --force --trust --output-format text "$(cat <<EOF
           Follow .cursor/rules/qa-orchestration.mdc and .cursor/skills/self-heal/SKILL.md.
 
+          No Jira backlog — this job is CI self-heal only (push/PR E2E failure).
+
           The test job in this E2E workflow run failed.
           Actions run (failed E2E + this self-heal job): $RUN_URL
 

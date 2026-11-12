@@ -17,6 +17,8 @@ import path from 'path';
 
 import { test, expect } from '@playwright/test';
 
+import { ApiRoutes } from '../../test-data/enums/api-routes';
+
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
@@ -56,10 +58,10 @@ async function fetchProgramIds(
   request: import('@playwright/test').APIRequestContext,
   token: string,
 ): Promise<string[]> {
-  const response = await request.get(`${baseURL}/api/programs`, {
+  const response = await request.get(`${baseURL}${ApiRoutes.programs}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  expect(response.ok(), `GET /api/programs failed: HTTP ${response.status()}`).toBeTruthy();
+  expect(response.ok(), `GET ${ApiRoutes.programs} failed: HTTP ${response.status()}`).toBeTruthy();
 
   const body = (await response.json()) as { data?: ProgramRecord[] };
   const rows = body.data ?? [];
@@ -91,42 +93,78 @@ function idsToDelete(programIds: string[]): string[] {
 test.describe('Manual — programs bulk delete', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('GET programs and optionally DELETE by count or all', async ({ page, request }) => {
-    test.setTimeout(3_600_000);
+  test(
+    'GET /api/programs returns a program id list',
+    { tag: '@api' },
+    async ({ page, request }) => {
+      const token = await resolveApiToken(page);
+      const programIds = await fetchProgramIds(request, token);
+      expect(Array.isArray(programIds)).toBeTruthy();
+    },
+  );
 
-    const token = await resolveApiToken(page);
-    const programIds = await fetchProgramIds(request, token);
+  test.describe('Shared catalog DELETE (destructive)', () => {
+    let countBeforeDelete = 0;
 
-    console.log(`[programs-maintenance] GET /api/programs → ${programIds.length} id(s) in programIds[]`);
-
-    const targets = idsToDelete(programIds);
-    if (targets.length === 0) {
-      console.log(
-        '[programs-maintenance] Dry run only. Set PROGRAMS_DELETE_COUNT=<n> or PROGRAMS_DELETE_ALL=1 to delete.',
-      );
-      return;
-    }
-
-    console.log(
-      `[programs-maintenance] Deleting ${targets.length} program(s) (${programIds.length} total in list)…`,
-    );
-
-    let deleted = 0;
-    let failed = 0;
-    for (const id of targets) {
-      const response = await request.delete(`${baseURL}/api/programs/${id}`, {
+    test.afterAll(async ({ request }) => {
+      // Revert hook: bulk DELETE is irreversible — record post-run count for operator audit.
+      const token = process.env.DIDAXIS_API_TOKEN;
+      if (!token) return;
+      const response = await request.get(`${baseURL}${ApiRoutes.programs}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const status = response.status();
-      if (status === 200 || status === 404) {
-        deleted += 1;
-      } else {
-        failed += 1;
-        console.warn(`[programs-maintenance] DELETE ${id} → HTTP ${status}`);
-      }
-    }
+      if (!response.ok()) return;
+      const body = (await response.json()) as { data?: ProgramRecord[] };
+      const after = body.data?.length ?? 0;
+      console.log(
+        `[programs-maintenance] afterAll audit: beforeDelete=${countBeforeDelete}, afterDelete=${after}`,
+      );
+    });
 
-    console.log(`[programs-maintenance] Done. deleted=${deleted}, failed=${failed}`);
-    expect(failed, 'Some DELETE requests failed').toBe(0);
+    test(
+      'DELETE programs by count or all (maintenance)',
+      { tag: '@destructive' },
+      async ({ page, request }) => {
+        test.setTimeout(3_600_000);
+
+        const token = await resolveApiToken(page);
+        const programIds = await fetchProgramIds(request, token);
+        countBeforeDelete = programIds.length;
+
+        console.log(
+          `[programs-maintenance] GET ${ApiRoutes.programs} → ${programIds.length} id(s)`,
+        );
+
+        const targets = idsToDelete(programIds);
+        if (targets.length === 0) {
+          console.log(
+            '[programs-maintenance] Dry run only. Set PROGRAMS_DELETE_COUNT=<n> or PROGRAMS_DELETE_ALL=1 to delete.',
+          );
+          return;
+        }
+
+        console.log(
+          `[programs-maintenance] Deleting ${targets.length} program(s) (${programIds.length} total in list)…`,
+        );
+
+        let deleted = 0;
+        let failed = 0;
+        for (const id of targets) {
+          const response = await request.delete(`${baseURL}${ApiRoutes.programById(id)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const status = response.status();
+          if (status === 200 || status === 404) {
+            deleted += 1;
+          } else {
+            failed += 1;
+            console.warn(`[programs-maintenance] DELETE ${id} → HTTP ${status}`);
+          }
+        }
+
+        console.log(`[programs-maintenance] Done. deleted=${deleted}, failed=${failed}`);
+        expect(failed, 'Some DELETE requests failed').toBe(0);
+      },
+    );
   });
 });

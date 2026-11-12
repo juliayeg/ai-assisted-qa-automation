@@ -53,7 +53,13 @@ jobs:
           Never merge a pull request. Never close or transition a Jira ticket. A human approves every merge and every filed bug.
           Never weaken or delete assertions. Never use .disableRules() for a11y.
 
-          Use ATLASSIAN_EMAIL with ATLASSIAN_API_TOKEN for Jira. Use GITHUB_TOKEN for git and pull requests.
+          Use ATLASSIAN_EMAIL with ATLASSIAN_API_TOKEN for Jira (backlog + bug-reporter only). Use GITHUB_TOKEN for git and pull requests.
+
+          ## Execution order (mandatory — do not end the run early)
+          1. Query Jira for the backlog queue below. An empty queue (zero tickets) is normal — not a reason to stop.
+          2. Backlog: only if step 1 returned one or more tickets (max 5). If zero tickets, skip section Backlog entirely.
+          3. CI self-heal: ALWAYS run section CI self-heal on every workflow invocation — with or without Jira tickets, after step 2 or immediately when the queue was empty.
+          Do not mark the job done until step 3 is complete (suite run + triage; repair PRs when drift heals apply).
 
           ## Backlog
           Queue: DS tickets in status "In Progress" that do not already have the tests-generated label.
@@ -71,8 +77,8 @@ jobs:
           4. When the ticket spec is green, open one pull request linked to the ticket. Put the DS key in the title and body.
           5. After that PR exists, add the tests-generated label so the next run skips it.
 
-          ## CI self-heal (always — even when the backlog queue is empty)
-          After backlog work (or immediately if the queue is empty), run: npx playwright test
+          ## CI self-heal (mandatory — no Jira tickets required)
+          Run even when Backlog was skipped (zero tickets). After backlog work, or immediately when the queue was empty, run: npx playwright test
           (playwright.config.ts testIgnore excludes tests/manual/** — use the default config, do not pass tests/manual explicitly.)
 
           If the suite is red: triage each failure.

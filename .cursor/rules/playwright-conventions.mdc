@@ -128,43 +128,94 @@ test.beforeEach(async ({ page }) => {
 
 ---
 
-## 5. Test data
+## 5. Tagging strategy
 
-**Standard:** Every created record gets a unique name (`uniqueSuffix(testInfo.testId)` or equivalent); import `test` from `fixtures/cleanup.fixture.ts` and register programs with `trackProgram` / `trackProgramCreatesFromResponses` so teardown DELETE runs automatically.
+**Standard:** Tag each test with **exactly one** of `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, `@destructive` on the **test** (never on `test.describe`). Run slices via `npm run test:smoke` / `test:sanity` / etc.
 
-✅ **Good** (`tests/ds5-filter-program.spec.ts` + `fixtures/test-data.ts`):
+| Tag | Use for |
+|-----|---------|
+| `@smoke` | Critical happy paths (minutes, few tests) |
+| `@sanity` | Short UI checks, validation surfaces |
+| `@regression` | Edge cases, a11y, known-defect (`test.fail`) cases |
+| `@api` | Contract or `request`-first tests (minimal UI) |
+| `@e2e` | Multi-step UI journeys (create → list → edit) |
+| `@destructive` | Mutates **shared/global** state (locale, roles, flags, tenant settings) — **not** rows this test creates and deletes via cleanup |
+
+**`@destructive` only:** Run with `npm run test:destructive` (`--workers=1`). Use `test.describe.configure({ mode: 'serial' })` in that spec file. Any state-mutating test **must** restore prior values in `afterEach` or `afterAll` (revert hook documented in the spec). Tests that only create/delete **their own** programs keep `@regression` / `@e2e` and the cleanup fixture — not `@destructive`.
+
+✅ **Good:**
 
 ```typescript
-import { test, trackProgramCreatesFromResponses, captureApiTokenFromPage } from '../fixtures/cleanup.fixture';
-import { uniqueSuffix } from '../fixtures/test-data';
+test(
+  'New program appears in list after successful creation',
+  { tag: '@smoke' },
+  async ({ page }, testInfo) => {
+    // unique name + trackProgram → not @destructive
+  },
+);
 
-test.beforeEach(async ({ page, trackProgram, apiToken }) => {
-  captureApiTokenFromPage(page, apiToken);
-  trackProgramCreatesFromResponses(page, trackProgram);
-});
-
-test('filter by name', async ({ page }, testInfo) => {
-  const suffix = uniqueSuffix(testInfo.testId);
-  const name = `Web Development 2026 ${suffix}`;
-  // ... create via POM, IDs tracked for DELETE after test
+test('GET /api/programs contract', { tag: '@api' }, async ({ request }) => {
+  const response = await request.get(ApiRoutes.programs);
+  expect(response.ok()).toBeTruthy();
 });
 ```
 
 ❌ **Bad:**
 
 ```typescript
-import { test } from '@playwright/test';
+test.describe('Programs', { tag: '@regression' }, () => {
+  test('creates program', async () => {});
+}); // tag on describe
 
-test('creates program', async ({ page }) => {
-  await createProgram(page, 'Web Development 2026'); // static name, no cleanup
+test('bulk role swap', { tag: '@destructive' }, async ({ page }) => {
+  await setTenantLocale(page, 'fr-FR');
+  // missing afterAll to restore locale
 });
 ```
 
-**Why:** Parallel runs collide on fixed names and leave junk data that breaks filters, empty-state tests, and quotas.
+**Why:** One tag enables fast slices in CI and locally; `@destructive` must not run in parallel against shared config.
 
 ---
 
-## 6. API testing
+## 6. Test data
+
+**Standard:** Happy-path values from **Faker factories** under `test-data/factories/` (still unique via `uniqueSuffix(testInfo.testId)` and cleaned up); **invalid / boundary** inputs in static `test-data/*.ts` files; **secrets and base URLs** from `process.env` / playwright config; **repeated paths and copy** from `test-data/enums/`. Every created record uses `fixtures/cleanup.fixture.ts` (`trackProgram` / `trackProgramCreatesFromResponses`).
+
+✅ **Good** (`test-data/factories/program.factory.ts` + spec):
+
+```typescript
+import { buildProgramSeed } from '../test-data/factories/program.factory';
+import { WHITESPACE_ONLY_PROGRAM_NAMES } from '../test-data/invalid-program-inputs';
+import { ApiRoutes } from '../test-data/enums/api-routes';
+
+test('create program', { tag: '@e2e' }, async ({ page, trackProgram }, testInfo) => {
+  const { name, description } = buildProgramSeed(testInfo.testId);
+  const baseURL = process.env.DIDAXIS_URL;
+  // POM create → trackProgram DELETE in fixture teardown
+});
+
+// validation: use curated list, not faker
+for (const badName of WHITESPACE_ONLY_PROGRAM_NAMES) {
+  await modal.programName.fill(badName);
+}
+```
+
+❌ **Bad:**
+
+```typescript
+test('creates program', async ({ page }) => {
+  await createProgram(page, 'Web Development 2026');
+  await fetch(\`\${process.env.DIDAXIS_URL}/api/programs\`, {
+    headers: { Authorization: 'Bearer eyJhbGciOi...' },
+  });
+});
+```
+
+**Why:** Factories reduce duplication; static invalid sets stay reviewable; env + enums avoid secrets and drift in copy.
+
+---
+
+## 7. API testing
 
 **Standard:** Use Playwright’s `request` fixture for contract checks, listing IDs, and manual/bulk maintenance; UI-created programs still rely on the cleanup fixture — do not hardcode Bearer tokens in specs.
 
@@ -199,14 +250,14 @@ test('cleanup', async () => {
 
 ---
 
-## 7. Network mocking
+## 8. Network mocking
 
 **Standard:** Use `page.route` + `route.fulfill()` (or `route.abort()` for network failure) for deterministic 503/500, empty list, malformed JSON, and related edge cases — recon real copy first, one tag per test, POM-only interaction, never mock the happy-path call you are proving.
 
 ✅ **Good** (*advised — add under `tests/` per `.cursor/skills/programs-network-mocks/SKILL.md`; no routed spec in repo yet*):
 
 ```typescript
-test('empty catalog shows empty state', { tag: '@programs-empty-list' }, async ({ page }) => {
+test('empty catalog shows empty state', { tag: '@e2e' }, async ({ page }) => {
   await page.route('**/api/programs', async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
@@ -234,7 +285,7 @@ test('create program', async ({ page }) => {
 
 ---
 
-## 8. Accessibility
+## 9. Accessibility
 
 **Standard:** Key surfaces (always Programs; new pages/modals per `a11y-checks`) get an axe scan with `wcag2a` / `wcag2aa` tags plus a keyboard path axe cannot cover; drive UI via POMs; never `.disableRules()` to go green.
 
@@ -266,7 +317,7 @@ await page.click('text=New Program');
 
 ---
 
-## 9. Assertions
+## 10. Assertions
 
 **Standard:** Default to auto-retrying web-first `expect(locator)`; use `expect.soft` for multiple independent checks in one test; use `toHaveScreenshot` only when the UI is stable and functional asserts cannot express the regression.
 
@@ -297,7 +348,7 @@ await expect(page).toHaveScreenshot(); // on live programs list with changing ro
 
 ---
 
-## 10. Anti-flake
+## 11. Anti-flake
 
 **Standard:** Local `retries: 0`, CI `retries: 2` (never above 2); `fullyParallel: true` — no `workers: 1` to green a run; pinned `locale` / `timezoneId` in config; freeze time with `page.clock.install()` for relative dates; isolate mocks per test (`unroute` / fresh `page`).
 
@@ -348,7 +399,8 @@ test('dates', async ({ page }) => {
 | `page.route` / `fulfill` / `abort` for error and empty states (recon copy first) | Mock the API call whose success you assert |
 | Axe `wcag2a`/`wcag2aa` + keyboard via POMs on key pages | `.disableRules()` or invented a11y shortcuts |
 | Web-first expects; `expect.soft` for multi-field validation | One-shot DOM reads; drive-by screenshots on live data |
-| Trust `playwright.config.ts` retries/locale/TZ; `page.clock` for relative time | `workers: 1`, retries > 2, or `new Date()` in relative asserts |
+| Trust `playwright.config.ts` retries/locale/TZ; `page.clock` for relative time | `workers: 1` globally to green a run (except `test:destructive` script) |
+| Exactly one tag per test from the six allowed tags | Tags on `describe`, multiple tags, or `@destructive` for self-cleaning data only |
 
 ---
 

@@ -20,7 +20,7 @@ import {
       trackProgramCreatesFromResponses(page, trackProgram);
     });
   
-    test('TC-001: Program list shows name and description for each program', async ({
+    test('TC-001: Program list shows name and description for each program', { tag: '@smoke' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -53,7 +53,7 @@ import {
       }
     });
   
-    test('TC-002: Empty state shown when no programs match and none exist', async ({ page }) => {
+    test('TC-002: Empty state shown when no programs match and none exist', { tag: '@regression' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
       const dataRows = await expectProgramsListReady(programs);
       test.skip(dataRows > 0, 'Precondition: no programs exist in the system');
@@ -62,7 +62,7 @@ import {
       await expect(programs.createFirstProgramButton).toBeVisible();
     });
   
-    test('TC-003: Filter by program name returns matching programs only', async ({
+    test('TC-003: Filter by program name returns matching programs only', { tag: '@e2e' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(120_000);
@@ -87,7 +87,7 @@ import {
       await expect(programs.programRow(dataScience)).toHaveCount(0);
     });
   
-    test('TC-004: Filter is case-insensitive', async ({ page }, testInfo) => {
+    test('TC-004: Filter is case-insensitive', { tag: '@e2e' }, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       const programs = new ProgramsPage(page);
       await requireProgramFilterOrSkip(programs);
@@ -101,7 +101,7 @@ import {
       await expect(programs.programRow(programName)).toBeVisible();
     });
   
-    test('TC-005: Clearing filter restores full program list', async ({ page }, testInfo) => {
+    test('TC-005: Clearing filter restores full program list', { tag: '@e2e' }, async ({ page }, testInfo) => {
       test.setTimeout(120_000);
       const programs = new ProgramsPage(page);
       await requireProgramFilterOrSkip(programs);
@@ -122,7 +122,7 @@ import {
       await expect(programs.programRow(dataScience)).toBeVisible();
     });
   
-    test('TC-006: No results message shown when filter matches nothing', async ({
+    test('TC-006: No results message shown when filter matches nothing', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -143,7 +143,7 @@ import {
       await expect(programs.noMatchState).toBeVisible();
     });
   
-    test('TC-007: Filter does not modify underlying program data', async ({ page }, testInfo) => {
+    test('TC-007: Filter does not modify underlying program data', { tag: '@regression' }, async ({ page }, testInfo) => {
       test.setTimeout(120_000);
       const programs = new ProgramsPage(page);
       await requireProgramFilterOrSkip(programs);
@@ -169,7 +169,7 @@ import {
       }
     });
   
-    test('TC-008: Empty state is not shown when programs exist but filter returns no matches', async ({
+    test('TC-008: Empty state is not shown when programs exist but filter returns no matches', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -186,7 +186,7 @@ import {
       await expect(programs.noMatchState).toBeVisible();
     });
   
-    test('TC-009: Filter matches program description text', async ({ page }, testInfo) => {
+    test('TC-009: Filter matches program description text', { tag: '@e2e' }, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       const programs = new ProgramsPage(page);
       await requireProgramFilterOrSkip(programs);
@@ -201,7 +201,7 @@ import {
       await expect(programs.programRow(programName)).toBeVisible();
     });
   
-    test('TC-010: Filter with special characters returns correct results', async ({
+    test('TC-010: Filter with special characters returns correct results', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -217,7 +217,7 @@ import {
       await expect(programs.programRow(programName)).toBeVisible();
     });
   
-    test('TC-011: Filter with whitespace-only input shows all programs or no filter applied', async ({
+    test('TC-011: Filter with whitespace-only input shows all programs or no filter applied', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -236,7 +236,7 @@ import {
       await expect(programs.programRow(nameB)).toBeVisible();
     });
   
-    test('TC-012: Filter updates results as user types (live search)', async ({ page }, testInfo) => {
+    test('TC-012: Filter updates results as user types (live search)', { tag: '@e2e' }, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       const programs = new ProgramsPage(page);
       await requireProgramFilterOrSkip(programs);
@@ -255,7 +255,7 @@ import {
       await expect(programs.programRow(dataScience)).toHaveCount(0);
     });
   
-    test('TC-013: Filter persists or resets after navigating away and back', async ({
+    test('TC-013: Filter persists or resets after navigating away and back', { tag: '@e2e' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);

@@ -1,0 +1,44 @@
+---
+description: Non-negotiable Playwright project constitution — MUST / SHOULD / WON'T. Read before any test or POM change.
+alwaysApply: true
+---
+
+# Constitution
+
+Detail lives in `.cursor/rules/playwright-conventions.mdc` and skills; this file is the always-on floor.
+
+## MUST
+
+| Rule | Meaning |
+|------|---------|
+| Role-based locators | `getByRole` → label → text → `testId` in POMs only; no inline locators in specs |
+| Web-first assertions | `await expect(locator)` in specs; POMs act, never assert |
+| `storageState` auth | `setup` project + saved auth; UI login only when testing login or unauthenticated flows |
+| Unique self-cleaning data | `uniqueSuffix(testInfo.testId)` (or equivalent) + cleanup fixture for every created record |
+| One tag per test | Exactly one of `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, `@destructive` on the **test**, not on `test.describe` |
+
+## SHOULD
+
+| Practice | Meaning |
+|----------|---------|
+| Faker factories | Shared factories for repeatable test data when Faker fits; still unique + cleaned up in Didaxis |
+| Enums for repeated strings | One source for labels, routes, and API paths used across POMs and specs |
+| JSDoc on action methods | POM user-action methods document intent; keep locators obvious from names |
+
+## WON'T
+
+| Refusal | Meaning |
+|---------|---------|
+| XPath | Refuse; rediscover with role + accessible name |
+| `waitForTimeout` | Refuse; use web-first expects |
+| Hardcoded secrets | Refuse; `.env` / CI secrets / `storageState` only |
+| `any` | Refuse; type properly or escalate |
+| Weakened assertions | Refuse; deleting or loosening `expect` to go green |
+| Healing a real bug | Refuse; bug-reporter path only after triage |
+| Tags on `describe` | Refuse; one tag per test instead |
+
+## Index
+
+**Skills** (`.cursor/skills/`): `jira-ticket-to-gherkin`, `explore-and-generate`, `self-heal`, `ci-failure-triage`, `jira-bug-reporter`, `pom-conventions`, `a11y-checks`, `programs-network-mocks`, `api-cleanup`
+
+**Agents** (`.cursor/agents/`): `test-writer` (specs from plan), `triage` (classify red runs), `bug-reporter` (Jira bugs)

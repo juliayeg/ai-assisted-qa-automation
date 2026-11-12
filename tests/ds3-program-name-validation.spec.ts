@@ -24,7 +24,7 @@ import {
       trackProgramCreatesFromResponses(page, trackProgram);
     });
   
-    test('TC-001: Program name with special characters is accepted', async ({ page }, testInfo) => {
+    test('TC-001: Program name with special characters is accepted', { tag: '@sanity' }, async ({ page }, testInfo) => {
       const programs = new ProgramsPage(page);
       const suffix = uniqueSuffix(testInfo.testId);
       const programName = `Informatique & IA - Niveau 2 ${suffix}`;
@@ -36,7 +36,7 @@ import {
       await expectProgramInList(programs, programName);
     });
   
-    test('TC-002: Program name with hyphens and numbers is accepted', async ({ page }, testInfo) => {
+    test('TC-002: Program name with hyphens and numbers is accepted', { tag: '@regression' }, async ({ page }, testInfo) => {
       const programs = new ProgramsPage(page);
       const suffix = uniqueSuffix(testInfo.testId);
       const programName = `Web-Dev 101 (2026) ${suffix}`;
@@ -48,7 +48,7 @@ import {
       await expectProgramInList(programs, programName);
     });
   
-    test('TC-003: Duplicate check is case-insensitive', async ({ page }, testInfo) => {
+    test('TC-003: Duplicate check is case-insensitive', { tag: '@regression' }, async ({ page }, testInfo) => {
       test.setTimeout(60_000);
       const programs = new ProgramsPage(page);
       const suffix = uniqueSuffix(testInfo.testId);
@@ -65,7 +65,7 @@ import {
       await expectDuplicateRejected(programs, modal, programName, 1);
     });
   
-    test('TC-004: Whitespace-only program name is rejected', async ({ page }) => {
+    test('TC-004: Whitespace-only program name is rejected', { tag: '@sanity' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
       const modal = await openNewProgramModal(programs);
       await modal.programName.fill('   ');
@@ -75,7 +75,7 @@ import {
       await expect(modal.dialog).toBeVisible();
     });
   
-    test('TC-005: Duplicate program name is rejected', async ({ page }, testInfo) => {
+    test('TC-005: Duplicate program name is rejected', { tag: '@regression' }, async ({ page }, testInfo) => {
       test.setTimeout(60_000);
       const programs = new ProgramsPage(page);
       const suffix = uniqueSuffix(testInfo.testId);
@@ -91,7 +91,7 @@ import {
       await expectDuplicateRejected(programs, modal, programName, 1);
     });
   
-    test('TC-006: Leading and trailing whitespace is trimmed before duplicate check', async ({
+    test('TC-006: Leading and trailing whitespace is trimmed before duplicate check', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(60_000);
@@ -110,7 +110,7 @@ import {
       await expectDuplicateRejected(programs, modal, programName, 1);
     });
   
-    test('TC-007: Empty program name cannot bypass validation', async ({ page }) => {
+    test('TC-007: Empty program name cannot bypass validation', { tag: '@sanity' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
       const modal = await openNewProgramModal(programs);
   
@@ -123,7 +123,7 @@ import {
       await expect(modal.createButton).toBeDisabled();
     });
   
-    test('TC-008: Program name with Unicode characters is accepted', async ({ page }, testInfo) => {
+    test('TC-008: Program name with Unicode characters is accepted', { tag: '@regression' }, async ({ page }, testInfo) => {
       const programs = new ProgramsPage(page);
       const suffix = uniqueSuffix(testInfo.testId);
       const programName = `Programme de Développement Web ${suffix}`;
@@ -135,7 +135,7 @@ import {
       await expectProgramInList(programs, programName);
     });
   
-    test('TC-009: Program name at maximum length boundary is validated for duplicates', async ({
+    test('TC-009: Program name at maximum length boundary is validated for duplicates', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -155,7 +155,7 @@ import {
       await expectDuplicateRejected(programs, modal, programName, 1);
     });
   
-    test('TC-010: Error message clears when user edits program name after duplicate error', async ({
+    test('TC-010: Error message clears when user edits program name after duplicate error', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(60_000);
@@ -184,7 +184,7 @@ import {
       await expect(modal.createButton).toBeEnabled({ timeout: 10_000 });
     });
   
-    test('TC-011: Program name with only tabs or mixed whitespace is rejected', async ({ page }) => {
+    test('TC-011: Program name with only tabs or mixed whitespace is rejected', { tag: '@regression' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
       const modal = await openNewProgramModal(programs);
       await modal.programName.fill('\t\t  \t');
@@ -194,7 +194,7 @@ import {
       await expect(modal.dialog).toBeVisible();
     });
   
-    test.fixme('TC-012: Surrounding spaces on a new name are trimmed before create', async ({
+    test.fixme('TC-012: Surrounding spaces on a new name are trimmed before create', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       const programs = new ProgramsPage(page);

@@ -23,7 +23,7 @@ import {
       trackProgramCreatesFromResponses(page, trackProgram);
     });
   
-    test('TC-001: Program creation form displays required fields', async ({ page }) => {
+    test('TC-001: Program creation form displays required fields', { tag: '@smoke' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
   
       await gotoProgramsAndReady(programs);
@@ -36,7 +36,7 @@ import {
       await expect(modal.description).toBeEditable();
     });
   
-    test('TC-002: New program appears in list after successful creation', async ({
+    test('TC-002: New program appears in list after successful creation', { tag: '@smoke' }, async ({
       page,
     }, testInfo) => {
       const programs = new ProgramsPage(page);
@@ -52,7 +52,7 @@ import {
       await expect(programs.programRow(programName)).toContainText(programDescription);
     });
   
-    test('TC-003: Program is created with description only when name is provided', async ({
+    test('TC-003: Program is created with description only when name is provided', { tag: '@e2e' }, async ({
       page,
     }, testInfo) => {
       const programs = new ProgramsPage(page);
@@ -63,7 +63,7 @@ import {
       await expectProgramInList(programs, programName);
     });
   
-    test('TC-004: Create button remains disabled when program name is empty', async ({ page }) => {
+    test('TC-004: Create button remains disabled when program name is empty', { tag: '@sanity' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
       const modal = await openNewProgramModal(programs);
   
@@ -71,7 +71,7 @@ import {
       await expect(modal.createButton).toBeDisabled();
     });
   
-    test('TC-005: Program is not created when form is submitted with empty name', async ({
+    test('TC-005: Program is not created when form is submitted with empty name', { tag: '@sanity' }, async ({
       page,
     }, testInfo) => {
       const programs = new ProgramsPage(page);
@@ -86,7 +86,7 @@ import {
       await expect(modal.createButton).toBeDisabled();
     });
   
-    test('TC-007: Program name at 100 characters is accepted', async ({ page }, testInfo) => {
+    test('TC-007: Program name at 100 characters is accepted', { tag: '@regression' }, async ({ page }, testInfo) => {
       const programs = new ProgramsPage(page);
       const suffix = String(Date.now()).slice(-6);
       const nameBody = 'A'.repeat(100 - suffix.length - 1);
@@ -103,7 +103,7 @@ import {
       await expectProgramInList(programs, programName);
     });
   
-    test('TC-008: Program name over 100 characters should be rejected', async ({
+    test('TC-008: Program name over 100 characters should be rejected', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.fail(true, 'Known defect: names over 100 characters are accepted (DS-124)');
@@ -122,7 +122,7 @@ import {
       await expect(programs.programRow(longName)).toHaveCount(0);
     });
   
-    test('TC-009: Modal closes without saving when Cancel is clicked', async ({
+    test('TC-009: Modal closes without saving when Cancel is clicked', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       const programs = new ProgramsPage(page);
@@ -139,7 +139,7 @@ import {
       await expect(programs.programRow(draftName)).toHaveCount(0);
     });
   
-    test('TC-010: Description field accepts long text without breaking layout', async ({
+    test('TC-010: Description field accepts long text without breaking layout', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       const programs = new ProgramsPage(page);
@@ -153,7 +153,7 @@ import {
       await expect(programs.programRow(programName)).toContainText('Long description');
     });
   
-    test('TC-011: Whitespace-only program name keeps Create disabled', async ({ page }) => {
+    test('TC-011: Whitespace-only program name keeps Create disabled', { tag: '@sanity' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
       const modal = await openNewProgramModal(programs);
       await modal.programName.fill('   ');
@@ -161,7 +161,7 @@ import {
       await expect(modal.createButton).toBeDisabled();
     });
   
-    test('TC-012: Escape closes modal without saving', async ({ page }, testInfo) => {
+    test('TC-012: Escape closes modal without saving', { tag: '@regression' }, async ({ page }, testInfo) => {
       const programs = new ProgramsPage(page);
       const draftName = `Draft Esc ${uniqueSuffix(testInfo.testId)}`;
   
@@ -176,7 +176,7 @@ import {
       await expect(programs.programRow(draftName)).toHaveCount(0);
     });
   
-    test('TC-013: Double-click Create should not create duplicate programs', async ({
+    test('TC-013: Double-click Create should not create duplicate programs', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.fail(true, 'Known defect: double-click Create creates duplicate rows (DS-110)');
@@ -194,7 +194,7 @@ import {
       await expect(programs.programRow(programName)).toHaveCount(1, { timeout: 15_000 });
     });
   
-    test('TC-014: Duplicate program name should be rejected', async ({ page }, testInfo) => {
+    test('TC-014: Duplicate program name should be rejected', { tag: '@regression' }, async ({ page }, testInfo) => {
       test.setTimeout(60_000);
       const programs = new ProgramsPage(page);
       const programName = `Existing Program ${uniqueSuffix(testInfo.testId)}`;

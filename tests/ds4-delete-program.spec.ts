@@ -132,7 +132,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
 
   test(
     'Failed server delete preserves the program in the list',
-    { tag: ['@regression', '@programs-503-delete'] },
+    { tag: '@regression' },
     async ({ page }, testInfo) => {
       const programs = new ProgramsPage(page);
       const programName = `Test Program ${uniqueSuffix(testInfo.testId)}`;

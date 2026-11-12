@@ -19,7 +19,7 @@ import {
       trackProgramCreatesFromResponses(page, trackProgram);
     });
   
-    test('TC-001: Edit icon opens the Edit Program modal with current data', async ({
+    test('TC-001: Edit icon opens the Edit Program modal with current data', { tag: '@e2e' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -39,7 +39,7 @@ import {
       await expect(modal.createButton()).toHaveCount(0);
     });
   
-    test('TC-002: Saving a new Program Name updates the list immediately', async ({
+    test('TC-002: Saving a new Program Name updates the list immediately', { tag: '@e2e' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(120_000);
@@ -61,7 +61,7 @@ import {
       await expect(programs.programRowByEditButton(updatedName)).toContainText(description);
     });
   
-    test('TC-003: Description-only edit leaves Program Name and other fields unchanged', async ({
+    test('TC-003: Description-only edit leaves Program Name and other fields unchanged', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -88,7 +88,7 @@ import {
       await expect(programs.editProgramButton(programName)).toBeVisible();
     });
   
-    test('TC-004: Clearing Description is allowed and does not remove the program', async ({
+    test('TC-004: Clearing Description is allowed and does not remove the program', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -108,7 +108,7 @@ import {
       await expect(reopened.programName).toHaveValue(programName);
     });
   
-    test('TC-006: Save stays disabled when Program Name is empty', async ({ page }, testInfo) => {
+    test('TC-006: Save stays disabled when Program Name is empty', { tag: '@sanity' }, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       const programs = new ProgramsPage(page);
       const programName = `Empty Name Guard ${uniqueSuffix(testInfo.testId)}`;
@@ -122,7 +122,7 @@ import {
       await expect(modal.dialog).toBeVisible();
     });
   
-    test('TC-007: Cancel discards unsaved edits', async ({ page }, testInfo) => {
+    test('TC-007: Cancel discards unsaved edits', { tag: '@e2e' }, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       const programs = new ProgramsPage(page);
       const suffix = uniqueSuffix(testInfo.testId);
@@ -145,7 +145,7 @@ import {
       await expect(reopened.description).toHaveValue(description);
     });
   
-    test('TC-008: Clicking the program name cell does not open the edit form', async ({
+    test('TC-008: Clicking the program name cell does not open the edit form', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -159,7 +159,7 @@ import {
       await expect(programs.page).toHaveURL(/\/programs/);
     });
   
-    test('TC-009: Whitespace-only Program Name keeps Save disabled', async ({
+    test('TC-009: Whitespace-only Program Name keeps Save disabled', { tag: '@sanity' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -174,7 +174,7 @@ import {
       await expect(modal.saveButton).toBeDisabled();
     });
   
-    test('TC-010: Escape from Program Name closes modal without saving', async ({
+    test('TC-010: Escape from Program Name closes modal without saving', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -192,7 +192,7 @@ import {
       await expect(programs.editProgramButton(`${programName} ESC`)).toHaveCount(0);
     });
   
-    test.fixme('TC-011: Modal X close discards unsaved edits', async ({ page }, testInfo) => {
+    test.fixme('TC-011: Modal X close discards unsaved edits', { tag: '@regression' }, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       const programs = new ProgramsPage(page);
       const suffix = uniqueSuffix(testInfo.testId);
@@ -211,7 +211,7 @@ import {
       await expect(reopened.description).toHaveValue(description);
     });
   
-    test('TC-012: Special characters in an edited name display correctly', async ({
+    test('TC-012: Special characters in an edited name display correctly', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.setTimeout(90_000);
@@ -230,7 +230,7 @@ import {
       await expect(programs.editProgramButton(originalName)).toHaveCount(0);
     });
   
-    test('TC-013: Duplicate program name on edit should be rejected', async ({
+    test('TC-013: Duplicate program name on edit should be rejected', { tag: '@regression' }, async ({
       page,
     }, testInfo) => {
       test.fail(true, 'Known defect: edit accepts a name that already exists (DS-13 / DS-122)');
@@ -256,7 +256,7 @@ import {
   test.describe('DS-2 — Edit existing program details (unauthenticated)', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
   
-    test('TC-005: Unauthenticated users cannot open program edit', async ({ page }) => {
+    test('TC-005: Unauthenticated users cannot open program edit', { tag: '@smoke' }, async ({ page }) => {
       const programs = new ProgramsPage(page);
       const login = new LoginPage(page);
   
